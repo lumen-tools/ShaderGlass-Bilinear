@@ -1,8 +1,13 @@
 name: Release
 
-# Builds ShaderGlass.exe on Windows and attaches it to the GitHub release.
-# Triggered automatically when a release is published, or manually via "Run workflow".
+# Builds ShaderGlass.exe on Windows and publishes it as a GitHub release.
+# - Push to main that changes VERSION -> creates tag v<VERSION> + release with the build
+# - Publishing a release manually       -> attaches the build to that release
+# - "Run workflow" manually             -> attaches the build to the given tag
 on:
+  push:
+    branches: [main]
+    paths: [VERSION]
   release:
     types: [published]
   workflow_dispatch:
@@ -21,6 +26,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Determine tag
+      id: tag
+      shell: pwsh
+      run: |
+        if ("${{ github.event_name }}" -eq "release") { $t = "${{ github.event.release.tag_name }}" }
+        elseif ("${{ github.event_name }}" -eq "workflow_dispatch") { $t = "${{ inputs.tag }}" }
+        else { $t = "v" + (Get-Content VERSION -Raw).Trim() }
+        "tag=$t" >> $env:GITHUB_OUTPUT
+        Write-Host "Tag: $t"
+
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
@@ -35,12 +50,17 @@ jobs:
         Copy-Item LICENSE, README.md dist\
         Compress-Archive -Path dist\* -DestinationPath ShaderGlass-x64.zip
 
-    - name: Upload to release
+    - name: Publish release
       shell: pwsh
       env:
         GH_TOKEN: ${{ github.token }}
-        TAG: ${{ github.event.release.tag_name || inputs.tag }}
-      run: gh release upload "$env:TAG" x64\Release\ShaderGlass.exe ShaderGlass-x64.zip --clobber --repo "${{ github.repository }}"
+        TAG: ${{ steps.tag.outputs.tag }}
+      run: |
+        gh release view "$env:TAG" --repo "${{ github.repository }}" *> $null
+        if ($LASTEXITCODE -ne 0) {
+          gh release create "$env:TAG" --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "$env:TAG" --generate-notes
+        }
+        gh release upload "$env:TAG" x64\Release\ShaderGlass.exe ShaderGlass-x64.zip --clobber --repo "${{ github.repository }}"
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
