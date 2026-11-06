@@ -269,14 +269,10 @@ void ShaderGlass::SetBilinear(bool bilinear)
 
 void ShaderGlass::ApplyBilinear()
 {
-    // Bilinear Filter: the last pass scales to the output window, force linear sampling there
+    // Bilinear Filter: smooth the captured image while it is scaled down to the shader input
+    // resolution (Pixel Size), i.e. BEFORE the shader chain. The shader receives the smoothed image.
     m_bilinearUpdated = false;
-    if(m_shaderPasses.empty())
-        return;
-    // in vertical mode an extra rotation pass is appended after the preset passes
-    const size_t lastPresetPass = m_shaderPasses.size() - 1 - ((m_vertical && m_shaderPasses.size() > 1) ? 1 : 0);
-    for(size_t i = 0; i < m_shaderPasses.size(); i++)
-        m_shaderPasses[i].SetForceLinear(m_bilinear && i >= lastPresetPass);
+    m_preprocessPass.SetForceLinear(m_bilinear);
 }
 
 void ShaderGlass::DestroyTargets()
