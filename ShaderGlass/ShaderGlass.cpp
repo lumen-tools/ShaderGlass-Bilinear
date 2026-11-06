@@ -271,8 +271,64 @@ void ShaderGlass::ApplyBilinear()
 {
     // Bilinear Filter: smooth the captured image while it is scaled down to the shader input
     // resolution (Pixel Size), i.e. BEFORE the shader chain. The shader receives the smoothed image.
-    m_bilinearUpdated = false;
+    m_bilinearUpdated  = false;
+    m_bilinearMVPDirty = true;
     m_preprocessPass.SetForceLinear(m_bilinear);
+    if(!m_bilinear)
+    {
+        m_mipView    = nullptr;
+        m_mipTexture = nullptr;
+    }
+}
+
+bool ShaderGlass::PrepareMipTexture(const winrt::com_ptr<ID3D11Texture2D>& texture)
+{
+    D3D11_TEXTURE2D_DESC src = {};
+    texture->GetDesc(&src);
+
+    if(m_mipTexture)
+    {
+        D3D11_TEXTURE2D_DESC cur = {};
+        m_mipTexture->GetDesc(&cur);
+        if(cur.Width != src.Width || cur.Height != src.Height || cur.Format != src.Format)
+        {
+            m_mipView    = nullptr;
+            m_mipTexture = nullptr;
+        }
+    }
+
+    if(!m_mipTexture)
+    {
+        UINT support = 0;
+        if(FAILED(m_device->CheckFormatSupport(src.Format, &support)) || !(support & D3D11_FORMAT_SUPPORT_MIP_AUTOGEN))
+            return false;
+
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width                = src.Width;
+        desc.Height               = src.Height;
+        desc.MipLevels            = 0; // full chain
+        desc.ArraySize            = 1;
+        desc.Format               = src.Format;
+        desc.SampleDesc.Count     = 1;
+        desc.Usage                = D3D11_USAGE_DEFAULT;
+        desc.BindFlags            = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        desc.MiscFlags            = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+        if(FAILED(m_device->CreateTexture2D(&desc, nullptr, m_mipTexture.put())))
+        {
+            m_mipTexture = nullptr;
+            return false;
+        }
+        if(FAILED(m_device->CreateShaderResourceView(m_mipTexture.get(), nullptr, m_mipView.put())))
+        {
+            m_mipView    = nullptr;
+            m_mipTexture = nullptr;
+            return false;
+        }
+    }
+
+    m_context->CopySubresourceRegion(m_mipTexture.get(), 0, 0, 0, 0, texture.get(), 0, nullptr);
+    m_context->GenerateMips(m_mipView.get());
+    return true;
 }
 
 void ShaderGlass::DestroyTargets()
@@ -957,7 +1013,7 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
         }
     }
 
-    if(outputMoved || outputResized || inputResized || (m_lastPos.x != topLeft.x || m_lastPos.y != topLeft.y) || m_lockedAreaUpdated)
+    if(outputMoved || outputResized || inputResized || inputRescaled || m_bilinearMVPDirty || (m_lastPos.x != topLeft.x || m_lastPos.y != topLeft.y) || m_lockedAreaUpdated)
     {
         // preprocess captured frame to a texture: crop (via scale & translation), reduce resolution, and whatnot (invert y?)
         float sx = 1.0f, sy = 1.0f, tx = 0.0f, ty = 0.0f;
@@ -1034,6 +1090,15 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
         tx += 0.0001f;
         ty += 0.0001f;
 
+        // Bilinear Filter: shift sampling by half a shader-input pixel so every input pixel is the
+        // bilinear (2x2) blend of its neighbours - same smoothing strength at every Pixel Size
+        m_bilinearMVPDirty = false;
+        if(m_bilinear && m_preprocessPass.m_destWidth > 0 && m_preprocessPass.m_destHeight > 0)
+        {
+            tx += 1.0f / m_preprocessPass.m_destWidth;
+            ty -= 1.0f / m_preprocessPass.m_destHeight;
+        }
+
         m_preprocessPass.UpdateMVP(sx, sy, tx, ty);
         m_lastPos.x = topLeft.x;
         m_lastPos.y = topLeft.y;
@@ -1046,8 +1111,16 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
     }
 
     winrt::com_ptr<ID3D11ShaderResourceView> textureView;
-    hr = m_device->CreateShaderResourceView(texture.get(), nullptr, textureView.put());
-    assert(SUCCEEDED(hr));
+    if(m_bilinear && PrepareMipTexture(texture))
+    {
+        // mipmapped copy: area-averaged downscale for any Pixel Size
+        textureView = m_mipView;
+    }
+    else
+    {
+        hr = m_device->CreateShaderResourceView(texture.get(), nullptr, textureView.put());
+        assert(SUCCEEDED(hr));
+    }
     m_preprocessPass.Render(textureView.get(), m_passResources, logicalFrameNo, 0, 0);
 
     if(m_cursorEmulator.Hidden())

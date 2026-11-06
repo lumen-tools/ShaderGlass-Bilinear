@@ -1,5 +1,5 @@
 > **Fork notice:** This is a modified version of [ShaderGlass](https://github.com/mausimus/ShaderGlass) by mausimus, based on v1.3.2.
-> Changes (2026): added a *Bilinear Filter* toggle under *Processing* (bilinear smoothing of the captured image before it is passed to the shader).
+> Changes (2026): added a *Bilinear Filter* toggle under *Processing* (bilinear smoothing of the captured image before it is passed to the shader, same strength at every Pixel Size).
 > Licensed under GPL-3.0 like the original.
 
 ![License](https://img.shields.io/github/license/mausimus/ShaderGlass?color=red) ![GitHub Stars](https://img.shields.io/github/stars/mausimus/ShaderGlass?color=yellow) ![Downloads](https://img.shields.io/github/downloads/mausimus/ShaderGlass/total) ![Latest Release](https://img.shields.io/github/release-date/mausimus/ShaderGlass?label=latest%20release&color=blue) ![Beta Release](https://img.shields.io/github/release-date-pre/mausimus/ShaderGlass?label=beta%20release&color=orange)

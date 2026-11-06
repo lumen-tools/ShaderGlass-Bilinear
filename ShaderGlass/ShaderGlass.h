@@ -61,6 +61,7 @@ private:
     void RebuildShaders();
     void PresentFrame();
     void ApplyBilinear();
+    bool PrepareMipTexture(const winrt::com_ptr<ID3D11Texture2D>& texture);
 
     POINT                                    m_lastSize;
     POINT                                    m_lastPos;
@@ -139,4 +140,8 @@ private:
     volatile bool  m_verticalUpdated {false};
     volatile bool  m_bilinear {false};
     volatile bool  m_bilinearUpdated {false};
+    bool           m_bilinearMVPDirty {false};
+
+    winrt::com_ptr<ID3D11Texture2D>          m_mipTexture {nullptr};
+    winrt::com_ptr<ID3D11ShaderResourceView> m_mipView {nullptr};
 };
