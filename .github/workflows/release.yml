@@ -1,0 +1,49 @@
+name: Release
+
+# Builds ShaderGlass.exe on Windows and attaches it to the GitHub release.
+# Triggered automatically when a release is published, or manually via "Run workflow".
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the build to (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build
+      run: msbuild /m /p:Configuration=Release /p:Platform=x64 ShaderGlass.sln
+
+    - name: Package
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force dist | Out-Null
+        Copy-Item x64\Release\ShaderGlass.exe dist\
+        Copy-Item LICENSE, README.md dist\
+        Compress-Archive -Path dist\* -DestinationPath ShaderGlass-x64.zip
+
+    - name: Upload to release
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      run: gh release upload "$env:TAG" x64\Release\ShaderGlass.exe ShaderGlass-x64.zip --clobber --repo "${{ github.repository }}"
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ShaderGlass_x64_Release
+        path: dist\
