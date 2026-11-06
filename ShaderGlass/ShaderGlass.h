@@ -39,6 +39,7 @@ public:
     void  SetCroppedArea(RECT area);
     void  SetFreeScale(bool freeScale);
     void  SetVertical(bool vertical);
+    void  SetBilinear(bool bilinear);
     float FPS()
     {
         return m_fps;
@@ -59,6 +60,7 @@ private:
     void DestroyTargets();
     void RebuildShaders();
     void PresentFrame();
+    void ApplyBilinear();
 
     POINT                                    m_lastSize;
     POINT                                    m_lastPos;
@@ -135,4 +137,6 @@ private:
     volatile bool  m_croppedAreaUpdated {false};
     volatile bool  m_vertical {false};
     volatile bool  m_verticalUpdated {false};
+    volatile bool  m_bilinear {false};
+    volatile bool  m_bilinearUpdated {false};
 };

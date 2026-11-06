@@ -43,6 +43,7 @@ struct CaptureOptions
     bool         useHDR {false};
     RECT         croppedArea {0, 0, 0, 0};
     bool         vertical {false};
+    bool         bilinear {false};
 };
 
 class CaptureManager
@@ -76,6 +77,7 @@ public:
     void  UpdateLockedArea();
     void  UpdateCroppedArea();
     void  UpdateVertical();
+    void  UpdateBilinear();
     void  GrabOutput();
     void  UpdateParams();
     void  ResetParams();

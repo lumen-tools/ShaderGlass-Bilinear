@@ -56,77 +56,7 @@ void ShaderPass::Initialize(winrt::com_ptr<ID3D11Device> device, winrt::com_ptr<
         assert(SUCCEEDED(hr));
     }
 
-    for(const auto& texture : m_shader.m_shaderDef.Samplers)
-    {
-        winrt::com_ptr<ID3D11SamplerState> samplerState;
-        D3D11_SAMPLER_DESC                 samplerDesc = {};
-
-        samplerDesc.Filter         = D3D11_FILTER_MIN_MAG_MIP_POINT;
-        samplerDesc.AddressU       = D3D11_TEXTURE_ADDRESS_BORDER;
-        samplerDesc.AddressV       = D3D11_TEXTURE_ADDRESS_BORDER;
-        samplerDesc.AddressW       = D3D11_TEXTURE_ADDRESS_BORDER;
-        samplerDesc.MaxLOD         = D3D11_FLOAT32_MAX;
-        samplerDesc.BorderColor[0] = 0.0f;
-        samplerDesc.BorderColor[1] = 0.0f;
-        samplerDesc.BorderColor[2] = 0.0f;
-        samplerDesc.BorderColor[3] = 0.0f;
-        samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-
-        // is it a static texture?
-        //if(m_preset)
-        {
-            auto ti = m_preset.m_textures.find(texture.name);
-            if(ti != m_preset.m_textures.end())
-            {
-                if(ti->second.m_linear)
-                    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-                if(ti->second.m_repeat)
-                {
-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-                }
-                if(ti->second.m_clamp)
-                {
-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-                }
-                if(ti->second.m_mirror)
-                {
-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
-                }
-            }
-            else
-            {
-                if(m_shader.m_filterLinear)
-                    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-                if(m_shader.m_clamp)
-                {
-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-                }
-                if(m_shader.m_repeat)
-                {
-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-                }
-                if(m_shader.m_mirror)
-                {
-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
-                }
-            }
-        }
-
-        m_device->CreateSamplerState(&samplerDesc, samplerState.put());
-        m_samplers.insert(std::make_pair(texture.binding, samplerState));
-    }
+    CreateSamplers();
 
     if(m_shader.BufferSize(0) > 0)
     {
@@ -433,4 +363,90 @@ int ShaderPass::RequiresHistory() const
         }
     }
     return maxHistory;
+}
+
+void ShaderPass::CreateSamplers()
+{
+    m_samplers.clear();
+    for(const auto& texture : m_shader.m_shaderDef.Samplers)
+    {
+        winrt::com_ptr<ID3D11SamplerState> samplerState;
+        D3D11_SAMPLER_DESC                 samplerDesc = {};
+
+        samplerDesc.Filter         = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        samplerDesc.AddressU       = D3D11_TEXTURE_ADDRESS_BORDER;
+        samplerDesc.AddressV       = D3D11_TEXTURE_ADDRESS_BORDER;
+        samplerDesc.AddressW       = D3D11_TEXTURE_ADDRESS_BORDER;
+        samplerDesc.MaxLOD         = D3D11_FLOAT32_MAX;
+        samplerDesc.BorderColor[0] = 0.0f;
+        samplerDesc.BorderColor[1] = 0.0f;
+        samplerDesc.BorderColor[2] = 0.0f;
+        samplerDesc.BorderColor[3] = 0.0f;
+        samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+
+        // is it a static texture?
+        //if(m_preset)
+        {
+            auto ti = m_preset.m_textures.find(texture.name);
+            if(ti != m_preset.m_textures.end())
+            {
+                if(ti->second.m_linear)
+                    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+                if(ti->second.m_repeat)
+                {
+                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+                }
+                if(ti->second.m_clamp)
+                {
+                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+                }
+                if(ti->second.m_mirror)
+                {
+                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
+                }
+            }
+            else
+            {
+                if(m_shader.m_filterLinear || m_forceLinear)
+                    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+                if(m_shader.m_clamp)
+                {
+                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+                }
+                if(m_shader.m_repeat)
+                {
+                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+                }
+                if(m_shader.m_mirror)
+                {
+                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
+                }
+            }
+        }
+
+        m_device->CreateSamplerState(&samplerDesc, samplerState.put());
+        m_samplers.insert(std::make_pair(texture.binding, samplerState));
+    }
+}
+
+// Bilinear Filter toggle: force linear filtering on all non-static (pass input) samplers
+void ShaderPass::SetForceLinear(bool forceLinear)
+{
+    if(m_forceLinear == forceLinear)
+        return;
+    m_forceLinear = forceLinear;
+    if(m_device)
+        CreateSamplers();
 }

@@ -179,6 +179,7 @@ void ShaderGlass::RebuildShaders()
     }
     float vertical = m_vertical ? 1.0f : 0.0f;
     m_preprocessShader.SetParam("SGVertical", &vertical);
+    ApplyBilinear();
 
     m_presetTextures.clear();
     for(auto& texture : m_shaderPreset->m_textures)
@@ -255,6 +256,27 @@ void ShaderGlass::SetVertical(bool vertical)
         m_vertical        = vertical;
         m_verticalUpdated = true;
     }
+}
+
+void ShaderGlass::SetBilinear(bool bilinear)
+{
+    if(m_bilinear != bilinear)
+    {
+        m_bilinear        = bilinear;
+        m_bilinearUpdated = true;
+    }
+}
+
+void ShaderGlass::ApplyBilinear()
+{
+    // Bilinear Filter: the last pass scales to the output window, force linear sampling there
+    m_bilinearUpdated = false;
+    if(m_shaderPasses.empty())
+        return;
+    // in vertical mode an extra rotation pass is appended after the preset passes
+    const size_t lastPresetPass = m_shaderPasses.size() - 1 - ((m_vertical && m_shaderPasses.size() > 1) ? 1 : 0);
+    for(size_t i = 0; i < m_shaderPasses.size(); i++)
+        m_shaderPasses[i].SetForceLinear(m_bilinear && i >= lastPresetPass);
 }
 
 void ShaderGlass::DestroyTargets()
@@ -680,6 +702,11 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
         outputResized     = true;
         rebuildPasses     = true;
         m_verticalUpdated = false;
+    }
+
+    if(m_bilinearUpdated)
+    {
+        ApplyBilinear();
     }
 
     // size of preprocessed input, which is 'original' for the shader chain

@@ -27,6 +27,7 @@ public:
     Resize(int sourceWidth, int sourceHeight, int destWidth, int destHeight, const std::map<std::string, float4>& textureSizes, const std::vector<std::array<UINT, 4>>& passSizes);
     void UpdateMVP(float sx, float sy, float tx, float ty);
     bool RequiresFeedback() const;
+    void SetForceLinear(bool forceLinear);
     int  RequiresHistory() const;
 
     Shader&                   m_shader;
@@ -55,4 +56,7 @@ private:
     winrt::com_ptr<ID3D11BlendState>                  m_blendState;
     int                                               m_sourceBinding {-1};
     float4x4                                          m_cursorMVP {};
+    bool                                              m_forceLinear {false};
+
+    void CreateSamplers();
 };

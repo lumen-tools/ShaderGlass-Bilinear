@@ -1067,6 +1067,16 @@ void ShaderWindow::SetKeepAwakeState(bool state)
     SaveRegistryOption(L"Keep Awake", state);
 }
 
+bool ShaderWindow::GetBilinearState()
+{
+    return GetRegistryOption(L"Bilinear Filter", false);
+}
+
+void ShaderWindow::SetBilinearState(bool state)
+{
+    SaveRegistryOption(L"Bilinear Filter", state);
+}
+
 void ShaderWindow::EnableKeepAwake(bool state)
 {
     if(state)
@@ -1543,6 +1553,14 @@ LRESULT CALLBACK ShaderWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam, L
                 CheckMenuItem(m_programMenu, ID_PROCESSING_KEEPAWAKE, MF_CHECKED);
             }
             break;
+        case ID_PROCESSING_BILINEARFILTER: {
+            const bool bilinear = !(GetMenuState(m_programMenu, ID_PROCESSING_BILINEARFILTER, MF_BYCOMMAND) & MF_CHECKED);
+            SetBilinearState(bilinear);
+            CheckMenuItem(m_programMenu, ID_PROCESSING_BILINEARFILTER, bilinear ? MF_CHECKED : MF_UNCHECKED);
+            m_captureOptions.bilinear = bilinear;
+            m_captureManager.UpdateBilinear();
+            break;
+        }
         case ID_PRESENTATION_USEFLIPMODE:
             if(GetMenuState(m_advancedMenu, ID_PRESENTATION_USEFLIPMODE, MF_BYCOMMAND) & MF_CHECKED)
             {
@@ -2566,6 +2584,11 @@ bool ShaderWindow::Create(_In_ HINSTANCE hInstance, _In_ int nCmdShow)
     {
         CheckMenuItem(m_programMenu, ID_PROCESSING_KEEPAWAKE, MF_BYCOMMAND | MF_CHECKED);
         EnableKeepAwake(true);
+    }
+    if(GetBilinearState())
+    {
+        CheckMenuItem(m_programMenu, ID_PROCESSING_BILINEARFILTER, MF_BYCOMMAND | MF_CHECKED);
+        m_captureOptions.bilinear = true;
     }
     if(RememberFPS())
     {

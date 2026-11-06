@@ -150,6 +150,8 @@ private:
     bool         GetKeepAwakeState();
     void         SetKeepAwakeState(bool state);
     void         EnableKeepAwake(bool state);
+    bool         GetBilinearState();
+    void         SetBilinearState(bool state);
     void         SaveRecentProfiles();
     void         LoadRecentProfiles();
     void         AddRecentProfile(const std::wstring& path);

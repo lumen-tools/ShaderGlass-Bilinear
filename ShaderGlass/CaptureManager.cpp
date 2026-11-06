@@ -157,6 +157,7 @@ bool CaptureManager::StartSession()
     UpdateLockedArea();
     UpdateCroppedArea();
     UpdateVertical();
+    UpdateBilinear();
 
     if(m_options.imageFile.size())
     {
@@ -456,6 +457,14 @@ void CaptureManager::UpdateVertical()
     {
         m_shaderGlass->SetVertical(m_options.vertical);
         UpdateOutputSize();
+    }
+}
+
+void CaptureManager::UpdateBilinear()
+{
+    if(m_shaderGlass)
+    {
+        m_shaderGlass->SetBilinear(m_options.bilinear);
     }
 }
 
