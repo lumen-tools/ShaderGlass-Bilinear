@@ -269,11 +269,16 @@ void ShaderGlass::SetBilinear(bool bilinear)
 
 void ShaderGlass::ApplyBilinear()
 {
-    // Bilinear Filter: smooth the captured image while it is scaled down to the shader input
-    // resolution (Pixel Size), i.e. BEFORE the shader chain. The shader receives the smoothed image.
+    // Bilinear Filter, modelled on RetroArch's "Bilinear Filtering" (video_smooth):
+    // 1) the captured image is downscaled to the shader input (Pixel Size) with proper averaging
+    //    (mipmapped copy + linear sampling), so the shader gets a clean "native" frame like in RetroArch
+    // 2) every shader pass whose preset does not specify filter_linear samples with linear filtering
+    //    (with the "none" shader this is the bilinear upscale to the window)
     m_bilinearUpdated  = false;
     m_bilinearMVPDirty = true;
     m_preprocessPass.SetForceLinear(m_bilinear);
+    for(auto& pass : m_shaderPasses)
+        pass.SetForceLinear(m_bilinear);
     if(!m_bilinear)
     {
         m_mipView    = nullptr;
@@ -1090,14 +1095,7 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
         tx += 0.0001f;
         ty += 0.0001f;
 
-        // Bilinear Filter: shift sampling by half a shader-input pixel so every input pixel is the
-        // bilinear (2x2) blend of its neighbours - same smoothing strength at every Pixel Size
         m_bilinearMVPDirty = false;
-        if(m_bilinear && m_preprocessPass.m_destWidth > 0 && m_preprocessPass.m_destHeight > 0)
-        {
-            tx += 1.0f / m_preprocessPass.m_destWidth;
-            ty -= 1.0f / m_preprocessPass.m_destHeight;
-        }
 
         m_preprocessPass.UpdateMVP(sx, sy, tx, ty);
         m_lastPos.x = topLeft.x;

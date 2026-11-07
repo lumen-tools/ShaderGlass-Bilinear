@@ -53,6 +53,10 @@ Shader::Shader(ShaderDef& shaderDef) :
     }
 
     m_filterLinear = IsTrue("filter_linear");
+    {
+        std::string filterValue;
+        m_filterSpecified = Get("filter_linear", filterValue);
+    }
     if(IsTrue("srgb_framebuffer"))
         m_format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
     if(IsTrue("float_framebuffer"))

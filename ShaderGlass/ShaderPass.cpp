@@ -413,7 +413,7 @@ void ShaderPass::CreateSamplers()
             }
             else
             {
-                if(m_shader.m_filterLinear || m_forceLinear)
+                if(m_shader.m_filterLinear || (m_forceLinear && !m_shader.m_filterSpecified))
                     samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
                 if(m_shader.m_clamp)
                 {
@@ -441,7 +441,8 @@ void ShaderPass::CreateSamplers()
     }
 }
 
-// Bilinear Filter toggle: force linear filtering on all non-static (pass input) samplers
+// Bilinear Filter toggle (like RetroArch's video_smooth): linear filtering for passes whose preset
+// does not specify filter_linear; preset LUT textures keep their own settings
 void ShaderPass::SetForceLinear(bool forceLinear)
 {
     if(m_forceLinear == forceLinear)

@@ -47,6 +47,7 @@ public:
     bool                               m_scaleAbsoluteY {false};
     DXGI_FORMAT                        m_format {DXGI_FORMAT_B8G8R8A8_UNORM};
     bool                               m_filterLinear {false};
+    bool                               m_filterSpecified {false}; // preset sets filter_linear explicitly
     bool                               m_clamp {false};
     bool                               m_mirror {false};
     bool                               m_repeat {false};
