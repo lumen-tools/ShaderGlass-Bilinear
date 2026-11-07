@@ -1,9 +1,10 @@
 name: Release
 
-# Builds ShaderGlass.exe on Windows and publishes it as a GitHub release.
-# - Push to main that changes VERSION -> creates tag v<VERSION> + release with the build
-# - Publishing a release manually       -> attaches the build to that release
-# - "Run workflow" manually             -> attaches the build to the given tag
+# Builds ShaderGlass.exe (Windows) and WineCap.dll (Linux/Wine) and publishes
+# ShaderGlass-<version>-win-x64.zip with the same contents as the upstream releases.
+# - Push to main that changes VERSION -> creates tag v<VERSION> + release
+# - Publishing a release manually       -> attaches the zip to that release
+# - "Run workflow" manually             -> (re)builds the zip for the given tag
 on:
   push:
     branches: [main]
@@ -13,57 +14,90 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to attach the build to (e.g. v1.0.0)'
+        description: 'Release tag to (re)build the zip for (e.g. v1.0.2)'
         required: true
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-2022
-
     steps:
     - uses: actions/checkout@v4
-
-    - name: Determine tag
-      id: tag
-      shell: pwsh
-      run: |
-        if ("${{ github.event_name }}" -eq "release") { $t = "${{ github.event.release.tag_name }}" }
-        elseif ("${{ github.event_name }}" -eq "workflow_dispatch") { $t = "${{ inputs.tag }}" }
-        else { $t = "v" + (Get-Content VERSION -Raw).Trim() }
-        "tag=$t" >> $env:GITHUB_OUTPUT
-        Write-Host "Tag: $t"
-
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
-
+    - uses: microsoft/setup-msbuild@v2
     - name: Build
       run: msbuild /m /p:Configuration=Release /p:Platform=x64 ShaderGlass.sln
+    - uses: actions/upload-artifact@v4
+      with:
+        name: exe
+        path: x64\Release\ShaderGlass.exe
 
-    - name: Package
-      shell: pwsh
+  build-winecap:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
       run: |
-        New-Item -ItemType Directory -Force dist | Out-Null
-        Copy-Item x64\Release\ShaderGlass.exe dist\
-        Copy-Item LICENSE, README.md dist\
-        Compress-Archive -Path dist\* -DestinationPath ShaderGlass-x64.zip
+        sudo dpkg --add-architecture i386
+        sudo mkdir -pm755 /etc/apt/keyrings && sudo wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key
+        sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources
+        sudo apt-get update
+        sudo apt-get install -y libpipewire-0.3-dev libglib2.0-dev gcc g++ make
+        sudo apt-get install -y --install-recommends wine-devel-dev winehq-devel
+    - name: Build
+      working-directory: ./WineCap
+      run: make all
+    - uses: actions/upload-artifact@v4
+      with:
+        name: winecap
+        path: ./WineCap/WineCap.dll
+
+  publish:
+    needs: [build-windows, build-winecap]
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Determine tag and version
+      id: ver
+      run: |
+        case "${{ github.event_name }}" in
+          release)           TAG="${{ github.event.release.tag_name }}" ;;
+          workflow_dispatch) TAG="${{ inputs.tag }}" ;;
+          *)                 TAG="v$(tr -d '[:space:]' < VERSION)" ;;
+        esac
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+    - name: Package (same layout as upstream ShaderGlass-x.y.z-win-x64.zip)
+      run: |
+        V="${{ steps.ver.outputs.version }}"
+        mkdir dist
+        cp artifacts/exe/ShaderGlass.exe artifacts/winecap/WineCap.dll Misc/MANUAL.pdf dist/
+        crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
+        crlf LICENSE dist/LICENSE
+        crlf Misc/CustomShader.slang dist/CustomShader.slang
+        sed "1s/.*/ShaderGlass v$V (fork of ShaderGlass v1.3.2 with Bilinear Filter)/" Misc/README.txt > readme.tmp
+        crlf readme.tmp dist/README.txt
+        (cd dist && zip -X -9 "../ShaderGlass-$V-win-x64.zip" *)
+        unzip -l "ShaderGlass-$V-win-x64.zip"
 
     - name: Publish release
-      shell: pwsh
       env:
         GH_TOKEN: ${{ github.token }}
-        TAG: ${{ steps.tag.outputs.tag }}
+        TAG: ${{ steps.ver.outputs.tag }}
+        V: ${{ steps.ver.outputs.version }}
+        REPO: ${{ github.repository }}
       run: |
-        gh release view "$env:TAG" --repo "${{ github.repository }}" *> $null
-        if ($LASTEXITCODE -ne 0) {
-          gh release create "$env:TAG" --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "$env:TAG" --generate-notes
-        }
-        gh release upload "$env:TAG" x64\Release\ShaderGlass.exe ShaderGlass-x64.zip --clobber --repo "${{ github.repository }}"
-
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ShaderGlass_x64_Release
-        path: dist\
+        if ! gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
+          gh release create "$TAG" --repo "$REPO" --target "${{ github.sha }}" --title "ShaderGlass $V" --generate-notes
+        fi
+        # remove assets from older packaging
+        for a in $(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name'); do
+          [ "$a" != "ShaderGlass-$V-win-x64.zip" ] && gh release delete-asset "$TAG" "$a" --repo "$REPO" -y || true
+        done
+        gh release upload "$TAG" "ShaderGlass-$V-win-x64.zip" --clobber --repo "$REPO"
