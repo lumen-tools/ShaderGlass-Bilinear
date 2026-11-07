@@ -85,10 +85,28 @@ bool ShaderWindow::LoadProfile(const std::wstring& fileName, bool forceStart, co
             }
             else if(key == "PixelSize")
             {
+                bool found = false;
                 for(const auto& p : pixelSizes)
                 {
                     if(value == p.second.mnemonic)
+                    {
                         SendMessage(m_mainWindow, WM_COMMAND, p.first, 0);
+                        found = true;
+                    }
+                }
+                if(!found)
+                {
+                    // custom pixel size
+                    try
+                    {
+                        float customValue = std::stof(value);
+                        if(customValue >= 1.0f && customValue <= 20.0f)
+                            SendMessage(m_mainWindow, WM_COMMAND, IDM_PIXELSIZE_CUSTOM, (LPARAM)roundf(customValue * CUSTOM_PARAM_SCALE));
+                    }
+                    catch(std::exception&)
+                    {
+                        // ignored
+                    }
                 }
             }
             else if(key == "DPIScaling")
@@ -533,7 +551,6 @@ void ShaderWindow::StartImage(bool autoScale, int pixelSize)
 
 void ShaderWindow::SaveProfile(const std::wstring& fileName)
 {
-    const auto& pixelSize   = pixelSizes.at(WM_PIXEL_SIZE(m_selectedPixelSize));
     const auto& outputScale = outputScales.at(WM_OUTPUT_SCALE(m_selectedOutputScale));
     const auto& aspectRatio = aspectRatios.at(WM_ASPECT_RATIO(m_selectedAspectRatio));
     const auto& frameSkip   = frameSkips.at(WM_FRAME_SKIP(m_selectedFrameSkip));
@@ -541,7 +558,7 @@ void ShaderWindow::SaveProfile(const std::wstring& fileName)
 
     std::ofstream outfile(fileName);
     outfile << "ProfileVersion " << std::quoted("1.1") << std::endl;
-    outfile << "PixelSize " << std::quoted(pixelSize.mnemonic) << std::endl;
+    outfile << "PixelSize " << std::quoted(PixelSizeMnemonic()) << std::endl;
     outfile << "DPIScaling " << std::quoted(std::to_string(m_captureOptions.dpiScale != 1.0f)) << std::endl;
     if(aspectRatio.mnemonic == CUSTOM_MNEMONIC)
         outfile << "AspectRatio " << std::quoted(std::to_string(aspectRatio.r)) << std::endl;
@@ -961,6 +978,7 @@ void ShaderWindow::BuildInputMenu()
     {
         AppendMenu(m_pixelSizeMenu, MF_STRING, px.first, px.second.text);
     }
+    AppendMenu(m_pixelSizeMenu, MF_STRING, IDM_PIXELSIZE_CUSTOM, L"Custom...");
     InsertMenu(m_inputMenu, 5, MF_BYPOSITION | MF_STRING | MF_POPUP, (UINT_PTR)m_pixelSizeMenu, L"Pixel Size");
 
     m_displayMenu = GetSubMenu(m_inputMenu, 0);
@@ -1066,6 +1084,42 @@ bool ShaderWindow::GetKeepAwakeState()
 void ShaderWindow::SetKeepAwakeState(bool state)
 {
     SaveRegistryOption(L"Keep Awake", state);
+}
+
+void ShaderWindow::SetCustomPixelSize(float value)
+{
+    value                   = roundf(value * 100.0f) / 100.0f; // 2 decimal places
+    m_customPixelSize       = value;
+    m_customPixelSizeActive = true;
+
+    for(const auto& px : pixelSizes)
+        CheckMenuItem(m_pixelSizeMenu, px.first, MF_UNCHECKED | MF_BYCOMMAND);
+    CheckMenuItem(m_pixelSizeMenu, IDM_PIXELSIZE_CUSTOM, MF_CHECKED | MF_BYCOMMAND);
+
+    wchar_t text[64];
+    _snwprintf_s(text, 64, _TRUNCATE, L"Custom (x%S)...", PixelSizeMnemonic().c_str());
+    ModifyMenu(m_pixelSizeMenu, IDM_PIXELSIZE_CUSTOM, MF_BYCOMMAND | MF_STRING | MF_CHECKED, IDM_PIXELSIZE_CUSTOM, text);
+
+    m_captureOptions.pixelWidth  = value;
+    m_captureOptions.pixelHeight = value;
+    m_captureManager.UpdatePixelSize();
+    UpdateWindowState();
+}
+
+std::string ShaderWindow::PixelSizeMnemonic() const
+{
+    if(!m_customPixelSizeActive)
+        return pixelSizes.at(WM_PIXEL_SIZE(m_selectedPixelSize)).mnemonic;
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.2f", m_customPixelSize);
+    std::string s(buf);
+    // trim trailing zeros: 4.50 -> 4.5, 5.00 -> 5
+    while(!s.empty() && s.back() == '0')
+        s.pop_back();
+    if(!s.empty() && s.back() == '.')
+        s.pop_back();
+    return s;
 }
 
 bool ShaderWindow::GetBilinearState()
@@ -1352,7 +1406,7 @@ void ShaderWindow::UpdateTitle()
     // update title
     if(m_captureManager.IsActive())
     {
-        const auto& pixelSize   = pixelSizes.at(WM_PIXEL_SIZE(m_selectedPixelSize));
+        const auto  pixelSizeText = PixelSizeMnemonic();
         const auto& outputScale = outputScales.at(WM_OUTPUT_SCALE(m_selectedOutputScale));
         const auto& aspectRatio = aspectRatios.at(WM_ASPECT_RATIO(m_selectedAspectRatio));
         const auto& shader      = m_captureManager.Presets().at(m_captureOptions.presetNo);
@@ -1403,7 +1457,7 @@ void ShaderWindow::UpdateTitle()
                      _T("ShaderGlass (%s%S, %Spx, %S%%, ~%S, %S%dfps%S)"),
                      windowName,
                      shader->Name.c_str(),
-                     pixelSize.mnemonic,
+                     pixelSizeText.c_str(),
                      scaleString,
                      aspectRatio.mnemonic,
                      inFPSdisplay,
@@ -1649,6 +1703,30 @@ LRESULT CALLBACK ShaderWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam, L
             }
             m_captureManager.UpdateLockedArea();
             break;
+        case IDM_PIXELSIZE_CUSTOM: {
+            float value = m_customPixelSize;
+            if(lParam != 0)
+            {
+                // loading profile
+                value = lParam / (float)CUSTOM_PARAM_SCALE;
+            }
+            else
+            {
+                StartDialog();
+                float input = m_inputDialog->GetInput("Pixel Size (1.00 - 20.00):", m_customPixelSize);
+                EndDialog();
+                if(std::isnan(input))
+                    break;
+                value = input;
+            }
+            if(std::isnan(value) || value < 1.0f || value > 20.0f)
+            {
+                MessageBox(m_mainWindow, L"Pixel Size must be between 1.00 and 20.00.", L"ShaderGlass", MB_OK | MB_ICONWARNING);
+                break;
+            }
+            SetCustomPixelSize(value);
+            break;
+        }
         case IDM_PIXELSIZE_DPI:
             if(m_captureOptions.dpiScale == m_dpiScale)
             {
@@ -2029,7 +2107,9 @@ LRESULT CALLBACK ShaderWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam, L
                 const auto& pixelSize = pixelSizes.find(wmId);
                 if(pixelSize != pixelSizes.end())
                 {
-                    m_selectedPixelSize = wmId - WM_PIXEL_SIZE(0);
+                    m_selectedPixelSize     = wmId - WM_PIXEL_SIZE(0);
+                    m_customPixelSizeActive = false;
+                    CheckMenuItem(m_pixelSizeMenu, IDM_PIXELSIZE_CUSTOM, MF_UNCHECKED | MF_BYCOMMAND);
                     CheckMenuRadioItem(m_pixelSizeMenu, WM_PIXEL_SIZE(0), WM_PIXEL_SIZE(static_cast<UINT>(pixelSizes.size() - 1)), wmId, MF_BYCOMMAND);
                     m_captureOptions.pixelWidth  = pixelSize->second.w;
                     m_captureOptions.pixelHeight = pixelSize->second.h;

@@ -68,6 +68,12 @@ static INT_PTR CALLBACK InputProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 
             // Null-terminate the string.
             lpszInput[cchInput] = 0;
+            // accept ',' as decimal separator (e.g. 4,65)
+            for(WORD c = 0; c < cchInput; c++)
+            {
+                if(lpszInput[c] == L',')
+                    lpszInput[c] = L'.';
+            }
             try
             {
                 inputValue = std::stof(lpszInput);

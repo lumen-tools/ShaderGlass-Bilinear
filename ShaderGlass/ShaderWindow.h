@@ -64,6 +64,8 @@ private:
     CaptureOptions&               m_captureOptions;
     unsigned                      m_numPresets {0};
     unsigned                      m_selectedPixelSize {0};
+    bool                          m_customPixelSizeActive {false};
+    float                         m_customPixelSize {1.0f};
     unsigned                      m_selectedOutputScale {0};
     unsigned                      m_selectedAspectRatio {0};
     unsigned                      m_selectedFrameSkip {0};
@@ -151,6 +153,8 @@ private:
     void         SetKeepAwakeState(bool state);
     void         EnableKeepAwake(bool state);
     bool         GetBilinearState();
+    void         SetCustomPixelSize(float value);
+    std::string  PixelSizeMnemonic() const;
     void         SetBilinearState(bool state);
     void         SaveRecentProfiles();
     void         LoadRecentProfiles();
