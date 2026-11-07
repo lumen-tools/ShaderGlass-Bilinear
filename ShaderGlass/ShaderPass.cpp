@@ -230,7 +230,7 @@ void ShaderPass::Render(ID3D11ShaderResourceView* sourceView, std::map<std::stri
     m_context->IASetVertexBuffers(0, 1, vertexBuffer, &s_vertexStride, &s_vertexOffset);
 
     m_context->VSSetShader(m_shader.m_vertexShader.get(), NULL, 0);
-    m_context->PSSetShader(m_shader.m_pixelShader.get(), NULL, 0);
+    m_context->PSSetShader(m_pixelShaderOverride ? m_pixelShaderOverride.get() : m_shader.m_pixelShader.get(), NULL, 0);
 
     std::vector<int> bindings;
     for(const auto& texture : m_shader.m_shaderDef.Samplers)
@@ -413,7 +413,7 @@ void ShaderPass::CreateSamplers()
             }
             else
             {
-                if(m_shader.m_filterLinear || (m_forceLinear && !m_shader.m_filterSpecified))
+                if(m_shader.m_filterLinear || m_forceLinear)
                     samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
                 if(m_shader.m_clamp)
                 {
@@ -441,8 +441,7 @@ void ShaderPass::CreateSamplers()
     }
 }
 
-// Bilinear Filter toggle (like RetroArch's video_smooth): linear filtering for passes whose preset
-// does not specify filter_linear; preset LUT textures keep their own settings
+// Bilinear Filter toggle: linear filtering for this pass's input samplers (used for the preprocess pass)
 void ShaderPass::SetForceLinear(bool forceLinear)
 {
     if(m_forceLinear == forceLinear)
@@ -450,4 +449,9 @@ void ShaderPass::SetForceLinear(bool forceLinear)
     m_forceLinear = forceLinear;
     if(m_device)
         CreateSamplers();
+}
+
+void ShaderPass::SetPixelShaderOverride(winrt::com_ptr<ID3D11PixelShader> pixelShader)
+{
+    m_pixelShaderOverride = pixelShader;
 }

@@ -267,73 +267,82 @@ void ShaderGlass::SetBilinear(bool bilinear)
     }
 }
 
-void ShaderGlass::ApplyBilinear()
+// Bilinear Filter: when the captured image is scaled down to the shader input (Pixel Size), average the
+// whole screen area ("footprint") of each source pixel, centred on it, instead of reading a single point.
+// n x n bilinear taps (n = 2..8 depending on the scale) cover the footprint. The shader chain itself is unchanged.
+static const char* sFootprintPixelShader = R"(
+Texture2D<float4> Source : register(t2);
+SamplerState _Source_sampler : register(s2);
+
+struct PSInput
 {
-    // Bilinear Filter, modelled on RetroArch's "Bilinear Filtering" (video_smooth):
-    // 1) the captured image is downscaled to the shader input (Pixel Size) with proper averaging
-    //    (mipmapped copy + linear sampling), so the shader gets a clean "native" frame like in RetroArch
-    // 2) every shader pass whose preset does not specify filter_linear samples with linear filtering
-    //    (with the "none" shader this is the bilinear upscale to the window)
-    m_bilinearUpdated  = false;
-    m_bilinearMVPDirty = true;
-    m_preprocessPass.SetForceLinear(m_bilinear);
-    for(auto& pass : m_shaderPasses)
-        pass.SetForceLinear(m_bilinear);
-    if(!m_bilinear)
+    float2 vTexCoord : TEXCOORD0;
+};
+
+float4 main(PSInput input) : SV_Target0
+{
+    float2 uv = input.vTexCoord;
+    float  w, h;
+    Source.GetDimensions(w, h);
+    float2 texSize = float2(w, h);
+
+    // footprint: captured pixels per shader-input pixel, per texture axis (rotation-safe)
+    float2 fp = float2(abs(ddx(uv.x)) + abs(ddy(uv.x)), abs(ddx(uv.y)) + abs(ddy(uv.y))) * texSize;
+    fp        = max(fp, 1.0);
+    int    n   = clamp((int)ceil(max(fp.x, fp.y)), 2, 8); // taps per axis
+    float2 stp = fp / n / texSize;                       // tap spacing in UV
+
+    float4 acc = 0;
+    [loop] for(int j = 0; j < n; j++)
     {
-        m_mipView    = nullptr;
-        m_mipTexture = nullptr;
+        [loop] for(int i = 0; i < n; i++)
+        {
+            acc += Source.SampleLevel(_Source_sampler, uv + (float2(i, j) + 0.5 - n * 0.5) * stp, 0);
+        }
     }
+    return acc / (n * n);
+}
+)";
+
+bool ShaderGlass::CreateFootprintShader()
+{
+    if(m_footprintShader)
+        return true;
+
+    winrt::com_ptr<ID3DBlob> blob;
+    winrt::com_ptr<ID3DBlob> errorBlob;
+    HRESULT                  res = D3DCompile(sFootprintPixelShader,
+                             strlen(sFootprintPixelShader),
+                             "BilinearFootprint",
+                             NULL,
+                             NULL,
+                             "main",
+                             "ps_5_0",
+                             D3DCOMPILE_OPTIMIZATION_LEVEL3,
+                             0,
+                             blob.put(),
+                             errorBlob.put());
+    if(FAILED(res))
+    {
+        if(errorBlob)
+            OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+        return false;
+    }
+    res = m_device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, m_footprintShader.put());
+    if(FAILED(res))
+    {
+        m_footprintShader = nullptr;
+        return false;
+    }
+    return true;
 }
 
-bool ShaderGlass::PrepareMipTexture(const winrt::com_ptr<ID3D11Texture2D>& texture)
+void ShaderGlass::ApplyBilinear()
 {
-    D3D11_TEXTURE2D_DESC src = {};
-    texture->GetDesc(&src);
-
-    if(m_mipTexture)
-    {
-        D3D11_TEXTURE2D_DESC cur = {};
-        m_mipTexture->GetDesc(&cur);
-        if(cur.Width != src.Width || cur.Height != src.Height || cur.Format != src.Format)
-        {
-            m_mipView    = nullptr;
-            m_mipTexture = nullptr;
-        }
-    }
-
-    if(!m_mipTexture)
-    {
-        UINT support = 0;
-        if(FAILED(m_device->CheckFormatSupport(src.Format, &support)) || !(support & D3D11_FORMAT_SUPPORT_MIP_AUTOGEN))
-            return false;
-
-        D3D11_TEXTURE2D_DESC desc = {};
-        desc.Width                = src.Width;
-        desc.Height               = src.Height;
-        desc.MipLevels            = 0; // full chain
-        desc.ArraySize            = 1;
-        desc.Format               = src.Format;
-        desc.SampleDesc.Count     = 1;
-        desc.Usage                = D3D11_USAGE_DEFAULT;
-        desc.BindFlags            = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-        desc.MiscFlags            = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-        if(FAILED(m_device->CreateTexture2D(&desc, nullptr, m_mipTexture.put())))
-        {
-            m_mipTexture = nullptr;
-            return false;
-        }
-        if(FAILED(m_device->CreateShaderResourceView(m_mipTexture.get(), nullptr, m_mipView.put())))
-        {
-            m_mipView    = nullptr;
-            m_mipTexture = nullptr;
-            return false;
-        }
-    }
-
-    m_context->CopySubresourceRegion(m_mipTexture.get(), 0, 0, 0, 0, texture.get(), 0, nullptr);
-    m_context->GenerateMips(m_mipView.get());
-    return true;
+    m_bilinearUpdated = false;
+    const bool enable = m_bilinear && CreateFootprintShader();
+    m_preprocessPass.SetForceLinear(enable);
+    m_preprocessPass.SetPixelShaderOverride(enable ? m_footprintShader : nullptr);
 }
 
 void ShaderGlass::DestroyTargets()
@@ -1018,7 +1027,7 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
         }
     }
 
-    if(outputMoved || outputResized || inputResized || inputRescaled || m_bilinearMVPDirty || (m_lastPos.x != topLeft.x || m_lastPos.y != topLeft.y) || m_lockedAreaUpdated)
+    if(outputMoved || outputResized || inputResized || (m_lastPos.x != topLeft.x || m_lastPos.y != topLeft.y) || m_lockedAreaUpdated)
     {
         // preprocess captured frame to a texture: crop (via scale & translation), reduce resolution, and whatnot (invert y?)
         float sx = 1.0f, sy = 1.0f, tx = 0.0f, ty = 0.0f;
@@ -1095,8 +1104,6 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
         tx += 0.0001f;
         ty += 0.0001f;
 
-        m_bilinearMVPDirty = false;
-
         m_preprocessPass.UpdateMVP(sx, sy, tx, ty);
         m_lastPos.x = topLeft.x;
         m_lastPos.y = topLeft.y;
@@ -1109,16 +1116,8 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
     }
 
     winrt::com_ptr<ID3D11ShaderResourceView> textureView;
-    if(m_bilinear && PrepareMipTexture(texture))
-    {
-        // mipmapped copy: area-averaged downscale for any Pixel Size
-        textureView = m_mipView;
-    }
-    else
-    {
-        hr = m_device->CreateShaderResourceView(texture.get(), nullptr, textureView.put());
-        assert(SUCCEEDED(hr));
-    }
+    hr = m_device->CreateShaderResourceView(texture.get(), nullptr, textureView.put());
+    assert(SUCCEEDED(hr));
     m_preprocessPass.Render(textureView.get(), m_passResources, logicalFrameNo, 0, 0);
 
     if(m_cursorEmulator.Hidden())

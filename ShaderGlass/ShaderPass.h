@@ -28,6 +28,7 @@ public:
     void UpdateMVP(float sx, float sy, float tx, float ty);
     bool RequiresFeedback() const;
     void SetForceLinear(bool forceLinear);
+    void SetPixelShaderOverride(winrt::com_ptr<ID3D11PixelShader> pixelShader);
     int  RequiresHistory() const;
 
     Shader&                   m_shader;
@@ -57,6 +58,7 @@ private:
     int                                               m_sourceBinding {-1};
     float4x4                                          m_cursorMVP {};
     bool                                              m_forceLinear {false};
+    winrt::com_ptr<ID3D11PixelShader>                 m_pixelShaderOverride {nullptr};
 
     void CreateSamplers();
 };
