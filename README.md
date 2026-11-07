@@ -1,6 +1,7 @@
-> **Fork notice:** This is a modified version of [ShaderGlass](https://github.com/mausimus/ShaderGlass) by mausimus, based on v1.3.2.
-> Changes (2026): added a *Bilinear Filter* toggle under *Processing*: when the captured image is scaled down to the shader input (Pixel Size), the whole area of each source pixel is averaged (bilinear multi-tap) instead of reading a single point. The shader chain itself is unchanged.
-> Licensed under GPL-3.0 like the original.
+> **ShaderGlass-Bilinear** is a modified version of [ShaderGlass](https://github.com/mausimus/ShaderGlass) by mausimus, based on v1.3.2. All credit for ShaderGlass goes to mausimus.
+> Changes: added a *Bilinear Filter* toggle under *Processing*. When the captured image is scaled down to the shader input (Pixel Size), the whole area of each source pixel is averaged (bilinear multi-tap) instead of reading a single point. This gets shader results closer to running the same shaders natively in RetroArch. The shader chain itself is unchanged, and with the toggle off it behaves exactly like the original.
+> Developed with the help of Claude (AI). Licensed under GPL-3.0 like the original.
+> Download: [Releases](https://github.com/lumen-tools/ShaderGlass-Bilinear/releases)
 
 ![License](https://img.shields.io/github/license/mausimus/ShaderGlass?color=red) ![GitHub Stars](https://img.shields.io/github/stars/mausimus/ShaderGlass?color=yellow) ![Downloads](https://img.shields.io/github/downloads/mausimus/ShaderGlass/total) ![Latest Release](https://img.shields.io/github/release-date/mausimus/ShaderGlass?label=latest%20release&color=blue) ![Beta Release](https://img.shields.io/github/release-date-pre/mausimus/ShaderGlass?label=beta%20release&color=orange)
 

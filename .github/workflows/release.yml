@@ -1,7 +1,7 @@
 name: Release
 
 # Builds ShaderGlass.exe (Windows) and WineCap.dll (Linux/Wine) and publishes
-# ShaderGlass-<version>-win-x64.zip with the same contents as the upstream releases.
+# ShaderGlass-Bilinear-<version>-win-x64.zip with the same contents as the upstream releases.
 # - Push to main that changes VERSION -> creates tag v<VERSION> + release
 # - Publishing a release manually       -> attaches the zip to that release
 # - "Run workflow" manually             -> (re)builds the zip for the given tag
@@ -81,10 +81,10 @@ jobs:
         crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
         crlf LICENSE dist/LICENSE
         crlf Misc/CustomShader.slang dist/CustomShader.slang
-        sed "1s/.*/ShaderGlass v$V (fork of ShaderGlass v1.3.2 with Bilinear Filter)/" Misc/README.txt > readme.tmp
+        { echo "ShaderGlass-Bilinear v$V (based on ShaderGlass v1.3.2 by mausimus, with Bilinear Filter)"; echo "https://github.com/lumen-tools/ShaderGlass-Bilinear"; tail -n +2 Misc/README.txt; } > readme.tmp
         crlf readme.tmp dist/README.txt
-        (cd dist && zip -X -9 "../ShaderGlass-$V-win-x64.zip" *)
-        unzip -l "ShaderGlass-$V-win-x64.zip"
+        (cd dist && zip -X -9 "../ShaderGlass-Bilinear-$V-win-x64.zip" *)
+        unzip -l "ShaderGlass-Bilinear-$V-win-x64.zip"
 
     - name: Publish release
       env:
@@ -94,10 +94,10 @@ jobs:
         REPO: ${{ github.repository }}
       run: |
         if ! gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
-          gh release create "$TAG" --repo "$REPO" --target "${{ github.sha }}" --title "ShaderGlass $V" --generate-notes
+          gh release create "$TAG" --repo "$REPO" --target "${{ github.sha }}" --title "ShaderGlass-Bilinear $V" --generate-notes
         fi
         # remove assets from older packaging
         for a in $(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name'); do
-          [ "$a" != "ShaderGlass-$V-win-x64.zip" ] && gh release delete-asset "$TAG" "$a" --repo "$REPO" -y || true
+          [ "$a" != "ShaderGlass-Bilinear-$V-win-x64.zip" ] && gh release delete-asset "$TAG" "$a" --repo "$REPO" -y || true
         done
-        gh release upload "$TAG" "ShaderGlass-$V-win-x64.zip" --clobber --repo "$REPO"
+        gh release upload "$TAG" "ShaderGlass-Bilinear-$V-win-x64.zip" --clobber --repo "$REPO"
