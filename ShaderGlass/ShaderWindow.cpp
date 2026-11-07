@@ -1713,7 +1713,7 @@ LRESULT CALLBACK ShaderWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam, L
             else
             {
                 StartDialog();
-                float input = m_inputDialog->GetInput("Pixel Size (1.00 - 20.00):", m_customPixelSize);
+                float input = m_inputDialog->GetInput("Pixel Size (1.00 - 20.00):", m_customPixelSize, 2);
                 EndDialog();
                 if(std::isnan(input))
                     break;

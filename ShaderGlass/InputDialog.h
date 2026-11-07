@@ -12,7 +12,7 @@ class InputDialog
 public:
     InputDialog(HINSTANCE hInstance, HWND mainWindow);
 
-    float GetInput(const std::string& label, float existing);
+    float GetInput(const std::string& label, float existing, int decimals = -1);
 
 private:
     HINSTANCE m_instance;

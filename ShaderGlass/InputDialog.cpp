@@ -99,11 +99,20 @@ static INT_PTR CALLBACK InputProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM
     UNREFERENCED_PARAMETER(lParam);
 }
 
-float InputDialog::GetInput(const std::string& name, float value)
+float InputDialog::GetInput(const std::string& name, float value, int decimals)
 {
     inputValue    = value;
     labelText     = convertCharArrayToLPCWSTR(name.c_str());
-    startingValue = convertCharArrayToLPCWSTR(std::to_string(value).c_str());
+    if(decimals >= 0)
+    {
+        char formatted[32];
+        snprintf(formatted, sizeof(formatted), "%.*f", decimals, value);
+        startingValue = convertCharArrayToLPCWSTR(formatted);
+    }
+    else
+    {
+        startingValue = convertCharArrayToLPCWSTR(std::to_string(value).c_str());
+    }
     if(DialogBox(m_instance, MAKEINTRESOURCE(IDD_INPUT_DIALOG), m_mainWindow, InputProc) == IDOK)
         return inputValue;
     return NAN;
