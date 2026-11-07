@@ -916,22 +916,23 @@ void ShaderWindow::CropWindow()
 
 void ShaderWindow::BuildProgramMenu()
 {
-    m_frameSkipMenu = GetSubMenu(m_programMenu, 10);
+    // positions in the Processing menu (+1 after Remember Position/Keep PC Awake because of "Bilinear Filter")
+    m_frameSkipMenu = GetSubMenu(m_programMenu, 11);
     for(const auto& fs : frameSkips)
     {
         AppendMenu(m_frameSkipMenu, MF_STRING, fs.first, fs.second.text);
     }
 
     m_recentMenu = CreatePopupMenu();
-    InsertMenu(m_programMenu, 15, MF_BYPOSITION | MF_STRING | MF_POPUP, (UINT_PTR)m_recentMenu, L"Recent profiles");
+    InsertMenu(m_programMenu, 16, MF_BYPOSITION | MF_STRING | MF_POPUP, (UINT_PTR)m_recentMenu, L"Recent profiles");
     LoadRecentProfiles();
 
     m_hotkeysMenu  = GetSubMenu(m_programMenu, 3);
-    m_gpuMenu      = GetSubMenu(m_programMenu, 8);
-    m_advancedMenu = GetSubMenu(m_programMenu, 11);
+    m_gpuMenu      = GetSubMenu(m_programMenu, 9);
+    m_advancedMenu = GetSubMenu(m_programMenu, 12);
     if(!HasCaptureAPI())
     {
-        EnableMenuItem(m_programMenu, 11, MF_BYPOSITION | MF_DISABLED | MF_GRAYED);
+        EnableMenuItem(m_programMenu, 12, MF_BYPOSITION | MF_DISABLED | MF_GRAYED);
     }
 }
 
