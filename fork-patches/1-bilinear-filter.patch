@@ -1,0 +1,515 @@
+diff --git a/ShaderGlass/CaptureManager.cpp b/ShaderGlass/CaptureManager.cpp
+index 9d890a98..20417a9e 100644
+--- a/ShaderGlass/CaptureManager.cpp
++++ b/ShaderGlass/CaptureManager.cpp
+@@ -157,6 +157,7 @@ bool CaptureManager::StartSession()
+     UpdateLockedArea();
+     UpdateCroppedArea();
+     UpdateVertical();
++    UpdateBilinear();
+ 
+     if(m_options.imageFile.size())
+     {
+@@ -459,6 +460,14 @@ void CaptureManager::UpdateVertical()
+     }
+ }
+ 
++void CaptureManager::UpdateBilinear()
++{
++    if(m_shaderGlass)
++    {
++        m_shaderGlass->SetBilinear(m_options.bilinear);
++    }
++}
++
+ void CaptureManager::GrabOutput()
+ {
+     if(m_shaderGlass)
+diff --git a/ShaderGlass/CaptureManager.h b/ShaderGlass/CaptureManager.h
+index 129f3818..850ecd28 100644
+--- a/ShaderGlass/CaptureManager.h
++++ b/ShaderGlass/CaptureManager.h
+@@ -43,6 +43,7 @@ struct CaptureOptions
+     bool         useHDR {false};
+     RECT         croppedArea {0, 0, 0, 0};
+     bool         vertical {false};
++    bool         bilinear {false};
+ };
+ 
+ class CaptureManager
+@@ -76,6 +77,7 @@ public:
+     void  UpdateLockedArea();
+     void  UpdateCroppedArea();
+     void  UpdateVertical();
++    void  UpdateBilinear();
+     void  GrabOutput();
+     void  UpdateParams();
+     void  ResetParams();
+diff --git a/ShaderGlass/ShaderGlass.cpp b/ShaderGlass/ShaderGlass.cpp
+index 1aaaf1e9..4d8a8ab9 100644
+--- a/ShaderGlass/ShaderGlass.cpp
++++ b/ShaderGlass/ShaderGlass.cpp
+@@ -179,6 +179,7 @@ void ShaderGlass::RebuildShaders()
+     }
+     float vertical = m_vertical ? 1.0f : 0.0f;
+     m_preprocessShader.SetParam("SGVertical", &vertical);
++    ApplyBilinear();
+ 
+     m_presetTextures.clear();
+     for(auto& texture : m_shaderPreset->m_textures)
+@@ -257,6 +258,93 @@ void ShaderGlass::SetVertical(bool vertical)
+     }
+ }
+ 
++void ShaderGlass::SetBilinear(bool bilinear)
++{
++    if(m_bilinear != bilinear)
++    {
++        m_bilinear        = bilinear;
++        m_bilinearUpdated = true;
++    }
++}
++
++// Bilinear Filter: when the captured image is scaled down to the shader input (Pixel Size), average the
++// whole screen area ("footprint") of each source pixel, centred on it, instead of reading a single point.
++// n x n bilinear taps (n = 2..8 depending on the scale) cover the footprint. The shader chain itself is unchanged.
++static const char* sFootprintPixelShader = R"(
++Texture2D<float4> Source : register(t2);
++SamplerState _Source_sampler : register(s2);
++
++struct PSInput
++{
++    float2 vTexCoord : TEXCOORD0;
++};
++
++float4 main(PSInput input) : SV_Target0
++{
++    float2 uv = input.vTexCoord;
++    float  w, h;
++    Source.GetDimensions(w, h);
++    float2 texSize = float2(w, h);
++
++    // footprint: captured pixels per shader-input pixel, per texture axis (rotation-safe)
++    float2 fp = float2(abs(ddx(uv.x)) + abs(ddy(uv.x)), abs(ddx(uv.y)) + abs(ddy(uv.y))) * texSize;
++    fp        = max(fp, 1.0);
++    int    n   = clamp((int)ceil(max(fp.x, fp.y)), 2, 8); // taps per axis
++    float2 stp = fp / n / texSize;                       // tap spacing in UV
++
++    float4 acc = 0;
++    [loop] for(int j = 0; j < n; j++)
++    {
++        [loop] for(int i = 0; i < n; i++)
++        {
++            acc += Source.SampleLevel(_Source_sampler, uv + (float2(i, j) + 0.5 - n * 0.5) * stp, 0);
++        }
++    }
++    return acc / (n * n);
++}
++)";
++
++bool ShaderGlass::CreateFootprintShader()
++{
++    if(m_footprintShader)
++        return true;
++
++    winrt::com_ptr<ID3DBlob> blob;
++    winrt::com_ptr<ID3DBlob> errorBlob;
++    HRESULT                  res = D3DCompile(sFootprintPixelShader,
++                             strlen(sFootprintPixelShader),
++                             "BilinearFootprint",
++                             NULL,
++                             NULL,
++                             "main",
++                             "ps_5_0",
++                             D3DCOMPILE_OPTIMIZATION_LEVEL3,
++                             0,
++                             blob.put(),
++                             errorBlob.put());
++    if(FAILED(res))
++    {
++        if(errorBlob)
++            OutputDebugStringA((char*)errorBlob->GetBufferPointer());
++        return false;
++    }
++    res = m_device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, m_footprintShader.put());
++    if(FAILED(res))
++    {
++        m_footprintShader = nullptr;
++        return false;
++    }
++    return true;
++}
++
++void ShaderGlass::ApplyBilinear()
++{
++    m_bilinearUpdated = false;
++    const bool enable = m_bilinear && CreateFootprintShader();
++    m_preprocessPass.SetForceLinear(enable);
++    m_preprocessPass.SetPixelShaderOverride(enable ? m_footprintShader : nullptr);
++}
++
+ void ShaderGlass::DestroyTargets()
+ {
+     if(m_preprocessedRenderTarget != nullptr)
+@@ -682,6 +770,11 @@ void ShaderGlass::Process(winrt::com_ptr<ID3D11Texture2D> texture, ULONGLONG fra
+         m_verticalUpdated = false;
+     }
+ 
++    if(m_bilinearUpdated)
++    {
++        ApplyBilinear();
++    }
++
+     // size of preprocessed input, which is 'original' for the shader chain
+     UINT originalWidth  = static_cast<UINT>(destWidth / m_inputScaleW);
+     UINT originalHeight = static_cast<UINT>(destHeight / m_inputScaleH);
+diff --git a/ShaderGlass/ShaderGlass.h b/ShaderGlass/ShaderGlass.h
+index 52b3f436..32ccf91f 100644
+--- a/ShaderGlass/ShaderGlass.h
++++ b/ShaderGlass/ShaderGlass.h
+@@ -39,6 +39,7 @@ public:
+     void  SetCroppedArea(RECT area);
+     void  SetFreeScale(bool freeScale);
+     void  SetVertical(bool vertical);
++    void  SetBilinear(bool bilinear);
+     float FPS()
+     {
+         return m_fps;
+@@ -59,6 +60,8 @@ private:
+     void DestroyTargets();
+     void RebuildShaders();
+     void PresentFrame();
++    void ApplyBilinear();
++    bool CreateFootprintShader();
+ 
+     POINT                                    m_lastSize;
+     POINT                                    m_lastPos;
+@@ -135,4 +138,8 @@ private:
+     volatile bool  m_croppedAreaUpdated {false};
+     volatile bool  m_vertical {false};
+     volatile bool  m_verticalUpdated {false};
++    volatile bool  m_bilinear {false};
++    volatile bool  m_bilinearUpdated {false};
++
++    winrt::com_ptr<ID3D11PixelShader> m_footprintShader {nullptr};
+ };
+diff --git a/ShaderGlass/ShaderPass.cpp b/ShaderGlass/ShaderPass.cpp
+index 01baf041..e5e56103 100644
+--- a/ShaderGlass/ShaderPass.cpp
++++ b/ShaderGlass/ShaderPass.cpp
+@@ -56,77 +56,7 @@ void ShaderPass::Initialize(winrt::com_ptr<ID3D11Device> device, winrt::com_ptr<
+         assert(SUCCEEDED(hr));
+     }
+ 
+-    for(const auto& texture : m_shader.m_shaderDef.Samplers)
+-    {
+-        winrt::com_ptr<ID3D11SamplerState> samplerState;
+-        D3D11_SAMPLER_DESC                 samplerDesc = {};
+-
+-        samplerDesc.Filter         = D3D11_FILTER_MIN_MAG_MIP_POINT;
+-        samplerDesc.AddressU       = D3D11_TEXTURE_ADDRESS_BORDER;
+-        samplerDesc.AddressV       = D3D11_TEXTURE_ADDRESS_BORDER;
+-        samplerDesc.AddressW       = D3D11_TEXTURE_ADDRESS_BORDER;
+-        samplerDesc.MaxLOD         = D3D11_FLOAT32_MAX;
+-        samplerDesc.BorderColor[0] = 0.0f;
+-        samplerDesc.BorderColor[1] = 0.0f;
+-        samplerDesc.BorderColor[2] = 0.0f;
+-        samplerDesc.BorderColor[3] = 0.0f;
+-        samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+-
+-        // is it a static texture?
+-        //if(m_preset)
+-        {
+-            auto ti = m_preset.m_textures.find(texture.name);
+-            if(ti != m_preset.m_textures.end())
+-            {
+-                if(ti->second.m_linear)
+-                    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+-                if(ti->second.m_repeat)
+-                {
+-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+-                }
+-                if(ti->second.m_clamp)
+-                {
+-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+-                }
+-                if(ti->second.m_mirror)
+-                {
+-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
+-                }
+-            }
+-            else
+-            {
+-                if(m_shader.m_filterLinear)
+-                    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+-                if(m_shader.m_clamp)
+-                {
+-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+-                }
+-                if(m_shader.m_repeat)
+-                {
+-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+-                }
+-                if(m_shader.m_mirror)
+-                {
+-                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+-                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+-                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
+-                }
+-            }
+-        }
+-
+-        m_device->CreateSamplerState(&samplerDesc, samplerState.put());
+-        m_samplers.insert(std::make_pair(texture.binding, samplerState));
+-    }
++    CreateSamplers();
+ 
+     if(m_shader.BufferSize(0) > 0)
+     {
+@@ -300,7 +230,7 @@ void ShaderPass::Render(ID3D11ShaderResourceView* sourceView, std::map<std::stri
+     m_context->IASetVertexBuffers(0, 1, vertexBuffer, &s_vertexStride, &s_vertexOffset);
+ 
+     m_context->VSSetShader(m_shader.m_vertexShader.get(), NULL, 0);
+-    m_context->PSSetShader(m_shader.m_pixelShader.get(), NULL, 0);
++    m_context->PSSetShader(m_pixelShaderOverride ? m_pixelShaderOverride.get() : m_shader.m_pixelShader.get(), NULL, 0);
+ 
+     std::vector<int> bindings;
+     for(const auto& texture : m_shader.m_shaderDef.Samplers)
+@@ -434,3 +364,94 @@ int ShaderPass::RequiresHistory() const
+     }
+     return maxHistory;
+ }
++
++void ShaderPass::CreateSamplers()
++{
++    m_samplers.clear();
++    for(const auto& texture : m_shader.m_shaderDef.Samplers)
++    {
++        winrt::com_ptr<ID3D11SamplerState> samplerState;
++        D3D11_SAMPLER_DESC                 samplerDesc = {};
++
++        samplerDesc.Filter         = D3D11_FILTER_MIN_MAG_MIP_POINT;
++        samplerDesc.AddressU       = D3D11_TEXTURE_ADDRESS_BORDER;
++        samplerDesc.AddressV       = D3D11_TEXTURE_ADDRESS_BORDER;
++        samplerDesc.AddressW       = D3D11_TEXTURE_ADDRESS_BORDER;
++        samplerDesc.MaxLOD         = D3D11_FLOAT32_MAX;
++        samplerDesc.BorderColor[0] = 0.0f;
++        samplerDesc.BorderColor[1] = 0.0f;
++        samplerDesc.BorderColor[2] = 0.0f;
++        samplerDesc.BorderColor[3] = 0.0f;
++        samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
++
++        // is it a static texture?
++        //if(m_preset)
++        {
++            auto ti = m_preset.m_textures.find(texture.name);
++            if(ti != m_preset.m_textures.end())
++            {
++                if(ti->second.m_linear)
++                    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
++                if(ti->second.m_repeat)
++                {
++                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
++                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
++                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
++                }
++                if(ti->second.m_clamp)
++                {
++                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
++                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
++                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
++                }
++                if(ti->second.m_mirror)
++                {
++                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
++                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
++                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
++                }
++            }
++            else
++            {
++                if(m_shader.m_filterLinear || m_forceLinear)
++                    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
++                if(m_shader.m_clamp)
++                {
++                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
++                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
++                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
++                }
++                if(m_shader.m_repeat)
++                {
++                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
++                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
++                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
++                }
++                if(m_shader.m_mirror)
++                {
++                    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
++                    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
++                    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
++                }
++            }
++        }
++
++        m_device->CreateSamplerState(&samplerDesc, samplerState.put());
++        m_samplers.insert(std::make_pair(texture.binding, samplerState));
++    }
++}
++
++// Bilinear Filter toggle: linear filtering for this pass's input samplers (used for the preprocess pass)
++void ShaderPass::SetForceLinear(bool forceLinear)
++{
++    if(m_forceLinear == forceLinear)
++        return;
++    m_forceLinear = forceLinear;
++    if(m_device)
++        CreateSamplers();
++}
++
++void ShaderPass::SetPixelShaderOverride(winrt::com_ptr<ID3D11PixelShader> pixelShader)
++{
++    m_pixelShaderOverride = pixelShader;
++}
+diff --git a/ShaderGlass/ShaderPass.h b/ShaderGlass/ShaderPass.h
+index 2ed42634..5a4292cc 100644
+--- a/ShaderGlass/ShaderPass.h
++++ b/ShaderGlass/ShaderPass.h
+@@ -27,6 +27,8 @@ public:
+     Resize(int sourceWidth, int sourceHeight, int destWidth, int destHeight, const std::map<std::string, float4>& textureSizes, const std::vector<std::array<UINT, 4>>& passSizes);
+     void UpdateMVP(float sx, float sy, float tx, float ty);
+     bool RequiresFeedback() const;
++    void SetForceLinear(bool forceLinear);
++    void SetPixelShaderOverride(winrt::com_ptr<ID3D11PixelShader> pixelShader);
+     int  RequiresHistory() const;
+ 
+     Shader&                   m_shader;
+@@ -55,4 +57,8 @@ private:
+     winrt::com_ptr<ID3D11BlendState>                  m_blendState;
+     int                                               m_sourceBinding {-1};
+     float4x4                                          m_cursorMVP {};
++    bool                                              m_forceLinear {false};
++    winrt::com_ptr<ID3D11PixelShader>                 m_pixelShaderOverride {nullptr};
++
++    void CreateSamplers();
+ };
+diff --git a/ShaderGlass/ShaderWindow.cpp b/ShaderGlass/ShaderWindow.cpp
+index 6c276c4a..c1f770d0 100644
+--- a/ShaderGlass/ShaderWindow.cpp
++++ b/ShaderGlass/ShaderWindow.cpp
+@@ -916,22 +916,23 @@ void ShaderWindow::CropWindow()
+ 
+ void ShaderWindow::BuildProgramMenu()
+ {
+-    m_frameSkipMenu = GetSubMenu(m_programMenu, 10);
++    // positions in the Processing menu (+1 after Remember Position/Keep PC Awake because of "Bilinear Filter")
++    m_frameSkipMenu = GetSubMenu(m_programMenu, 11);
+     for(const auto& fs : frameSkips)
+     {
+         AppendMenu(m_frameSkipMenu, MF_STRING, fs.first, fs.second.text);
+     }
+ 
+     m_recentMenu = CreatePopupMenu();
+-    InsertMenu(m_programMenu, 15, MF_BYPOSITION | MF_STRING | MF_POPUP, (UINT_PTR)m_recentMenu, L"Recent profiles");
++    InsertMenu(m_programMenu, 16, MF_BYPOSITION | MF_STRING | MF_POPUP, (UINT_PTR)m_recentMenu, L"Recent profiles");
+     LoadRecentProfiles();
+ 
+     m_hotkeysMenu  = GetSubMenu(m_programMenu, 3);
+-    m_gpuMenu      = GetSubMenu(m_programMenu, 8);
+-    m_advancedMenu = GetSubMenu(m_programMenu, 11);
++    m_gpuMenu      = GetSubMenu(m_programMenu, 9);
++    m_advancedMenu = GetSubMenu(m_programMenu, 12);
+     if(!HasCaptureAPI())
+     {
+-        EnableMenuItem(m_programMenu, 11, MF_BYPOSITION | MF_DISABLED | MF_GRAYED);
++        EnableMenuItem(m_programMenu, 12, MF_BYPOSITION | MF_DISABLED | MF_GRAYED);
+     }
+ }
+ 
+@@ -1067,6 +1068,16 @@ void ShaderWindow::SetKeepAwakeState(bool state)
+     SaveRegistryOption(L"Keep Awake", state);
+ }
+ 
++bool ShaderWindow::GetBilinearState()
++{
++    return GetRegistryOption(L"Bilinear Filter", false);
++}
++
++void ShaderWindow::SetBilinearState(bool state)
++{
++    SaveRegistryOption(L"Bilinear Filter", state);
++}
++
+ void ShaderWindow::EnableKeepAwake(bool state)
+ {
+     if(state)
+@@ -1543,6 +1554,14 @@ LRESULT CALLBACK ShaderWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam, L
+                 CheckMenuItem(m_programMenu, ID_PROCESSING_KEEPAWAKE, MF_CHECKED);
+             }
+             break;
++        case ID_PROCESSING_BILINEARFILTER: {
++            const bool bilinear = !(GetMenuState(m_programMenu, ID_PROCESSING_BILINEARFILTER, MF_BYCOMMAND) & MF_CHECKED);
++            SetBilinearState(bilinear);
++            CheckMenuItem(m_programMenu, ID_PROCESSING_BILINEARFILTER, bilinear ? MF_CHECKED : MF_UNCHECKED);
++            m_captureOptions.bilinear = bilinear;
++            m_captureManager.UpdateBilinear();
++            break;
++        }
+         case ID_PRESENTATION_USEFLIPMODE:
+             if(GetMenuState(m_advancedMenu, ID_PRESENTATION_USEFLIPMODE, MF_BYCOMMAND) & MF_CHECKED)
+             {
+@@ -2567,6 +2586,11 @@ bool ShaderWindow::Create(_In_ HINSTANCE hInstance, _In_ int nCmdShow)
+         CheckMenuItem(m_programMenu, ID_PROCESSING_KEEPAWAKE, MF_BYCOMMAND | MF_CHECKED);
+         EnableKeepAwake(true);
+     }
++    if(GetBilinearState())
++    {
++        CheckMenuItem(m_programMenu, ID_PROCESSING_BILINEARFILTER, MF_BYCOMMAND | MF_CHECKED);
++        m_captureOptions.bilinear = true;
++    }
+     if(RememberFPS())
+     {
+         CheckMenuItem(m_frameSkipMenu, ID_FPS_REMEMBERFPS, MF_BYCOMMAND | MF_CHECKED);
+diff --git a/ShaderGlass/ShaderWindow.h b/ShaderGlass/ShaderWindow.h
+index a25b62dd..4b64b5c5 100644
+--- a/ShaderGlass/ShaderWindow.h
++++ b/ShaderGlass/ShaderWindow.h
+@@ -150,6 +150,8 @@ private:
+     bool         GetKeepAwakeState();
+     void         SetKeepAwakeState(bool state);
+     void         EnableKeepAwake(bool state);
++    bool         GetBilinearState();
++    void         SetBilinearState(bool state);
+     void         SaveRecentProfiles();
+     void         LoadRecentProfiles();
+     void         AddRecentProfile(const std::wstring& path);
+diff --git a/ShaderGlass/resource.h b/ShaderGlass/resource.h
+index 36a46707..c1101e7c 100644
+--- a/ShaderGlass/resource.h
++++ b/ShaderGlass/resource.h
+@@ -200,6 +200,7 @@
+ #define ID_RENDERER_DIRECT3D11          32939
+ #define ID_INPUT_WINDOW32940            32940
+ #define ID_PROCESSING_KEEPAWAKE         32941
++#define ID_PROCESSING_BILINEARFILTER    32942
+ #define IDC_STATIC                      -1
+ #define IDC_STATIC_LABEL                -1
+ 
+@@ -209,7 +210,7 @@
+ #ifndef APSTUDIO_READONLY_SYMBOLS
+ #define _APS_NO_MFC                     1
+ #define _APS_NEXT_RESOURCE_VALUE        142
+-#define _APS_NEXT_COMMAND_VALUE         32942
++#define _APS_NEXT_COMMAND_VALUE         32943
+ #define _APS_NEXT_CONTROL_VALUE         1004
+ #define _APS_NEXT_SYMED_VALUE           116
+ #endif
