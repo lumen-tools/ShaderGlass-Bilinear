@@ -196,7 +196,8 @@ mausimus hat für öffentliche Forks gebeten: Projekt überall umbenennen, keine
 - **Entfernt:** `images/`, `FAQ.md`, `Misc/MANUAL.html`, `Misc/MANUAL.pdf` (Doku und Links von mausimus), `.github/FUNDING.yml`, `.github/CONTRIBUTING.md`, die Original-Workflows `build.yml` und `build-winecap.yml`.
 - **README.md** komplett neu, `Misc/README.txt` (kommt als README.txt ins ZIP) neu.
 - **Kennzeichnung:** Jede gegenüber v1.3.2 geänderte Datei trägt oben den Hinweis „Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.“ Der Original-Copyright-Kopf von mausimus bleibt unverändert darüber.
-- **Bewusst nicht umbenannt (intern, nicht sichtbar):** Projekt-, Ordner-, Datei- und Klassennamen (`ShaderGlass.sln`, `ShaderGlass/`, `class ShaderGlass`, `IDC_SHADERGLASS` usw.), damit Vergleiche mit dem Original einfach bleiben. Das Programmsymbol (`ShaderGlass.ico`) ist noch das Original.
+- **Bewusst nicht umbenannt (intern, nicht sichtbar):** Projekt-, Ordner-, Datei- und Klassennamen (`ShaderGlass.sln`, `ShaderGlass/`, `class ShaderGlass`, `IDC_SHADERGLASS` usw.), damit Vergleiche mit dem Original einfach bleiben.
+- **Eigenes Programmsymbol:** `ShaderGlass/WinGlass.ico` (Fenster mit Röhrenbildschirm) ersetzt `ShaderGlass.ico` und `small.ico` von mausimus (`ShaderGlass.rc`, `.vcxproj`, `.vcxproj.filters`).
 
 ## Weitere Fork-spezifische Dinge (keine Funktionen)
 

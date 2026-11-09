@@ -251,8 +251,7 @@
   <ItemGroup>
     <Image Include="folder.bmp" />
     <Image Include="shader.bmp" />
-    <Image Include="ShaderGlass.ico" />
-    <Image Include="small.ico" />
+    <Image Include="WinGlass.ico" />
   </ItemGroup>
   <ItemGroup>
     <None Include="blank.cur" />

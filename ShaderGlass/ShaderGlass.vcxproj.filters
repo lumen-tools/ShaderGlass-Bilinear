@@ -199,10 +199,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="ShaderGlass.ico">
+    <Image Include="WinGlass.ico">
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="shader.bmp">
