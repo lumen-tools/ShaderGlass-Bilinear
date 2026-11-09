@@ -34,7 +34,7 @@ The changes compared to ShaderGlass 1.3.2 are documented in [FORK_CHANGES.md](FO
 ## Credits and license
 
 - **ShaderGlass** by mausimus, Copyright (C) 2021-2025 mausimus, GPL-3.0: WinGlass is a modified version of ShaderGlass 1.3.2. All original code, the user interface and the shader library integration are his work.
-- **RetroArch / libretro slang-shaders** ([libretro/slang-shaders](https://github.com/libretro/slang-shaders)): the bundled shaders, licensed by their respective authors.
+- **RetroArch / libretro slang-shaders** ([libretro/slang-shaders](https://github.com/libretro/slang-shaders)): the bundled shaders, licensed by their respective authors. The shader library built into WinGlass was prepared and precompiled by mausimus for ShaderGlass and is included unchanged. WinGlass does not download anything; your own shaders are imported from disk.
 - **glslang** and **SPIRV-Cross** (Khronos Group): shader compilation.
 
 Modifications (C) 2026 lumen-tools. WinGlass was developed with the help of Claude (AI); the modifications are provided as-is, without warranty.
