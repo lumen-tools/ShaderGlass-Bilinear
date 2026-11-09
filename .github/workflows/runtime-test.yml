@@ -1,0 +1,28 @@
+name: Runtime test
+# Manual runtime test on a Windows runner (Actions > Runtime test > Run workflow).
+# Starts WinGlass with a test pattern and checks Bilinear Filter, menus and Custom Pixel Size.
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@v4
+    - uses: microsoft/setup-msbuild@v2
+    - name: Build
+      run: msbuild /m /p:Configuration=Release /p:Platform=x64 ShaderGlass.sln
+    - name: Run test
+      shell: powershell
+      run: |
+        .\ci\menu.ps1 -Exe "$PWD\x64\Release\WinGlass.exe"
+        .\ci\test.ps1 -Exe "$PWD\x64\Release\WinGlass.exe" -Px 1 -Tag none1
+        .\ci\test.ps1 -Exe "$PWD\x64\Release\WinGlass.exe" -Px 2 -Tag none2
+        .\ci\test.ps1 -Exe "$PWD\x64\Release\WinGlass.exe" -Px 3 -Tag none3
+        .\ci\test.ps1 -Exe "$PWD\x64\Release\WinGlass.exe" -Px 8 -Tag none8
+        .\ci\test.ps1 -Exe "$PWD\x64\Release\WinGlass.exe" -Px 4.65 -Tag none465
+        .\ci\test.ps1 -Exe "$PWD\x64\Release\WinGlass.exe" -Cat "presets/crt-plus-signal" -Shader "crt-geom-deluxe-ntsc-adaptive" -Px 2 -Tag crt2
+        Get-Content out\result.txt
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: screenshots
+        path: out\

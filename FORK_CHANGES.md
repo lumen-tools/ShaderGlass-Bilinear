@@ -11,16 +11,50 @@ Dazu kommt die Umbenennung zu WinGlass (Abschnitt 3), wie von mausimus für öff
 
 ---
 
-## Schnellweg: Patches anwenden
+## Neue ShaderGlass-Version übernehmen (Anleitung, auch für eine KI)
 
-Im Ordner `fork-patches/` liegen die Änderungen als Patch gegen v1.3.2:
+**Ziel:** Neuerungen von mausimus übernehmen, ohne die beiden WinGlass-Funktionen und die Umbenennung zu verlieren. Die WinGlass-Funktionen haben Vorrang. Was mausimus neu baut, wird übernommen, solange es nicht mit ihnen kollidiert.
+
+### Weg A (empfohlen): Git-Merge
+
+Die WinGlass-Historie enthält die Original-Historie von ShaderGlass bis v1.3.2 (Commit `c9001490`). Ein neuer ShaderGlass-Tag lässt sich deshalb direkt mergen. Git kennt die gemeinsame Basis und muss nur die Unterschiede zusammenführen.
+
+```bash
+git remote add upstream https://github.com/mausimus/ShaderGlass
+```
+
+```bash
+git fetch upstream --tags
+```
+
+```bash
+git checkout -b update-shaderglass-X main
+```
+
+```bash
+git merge vX.Y.Z
+```
+
+`vX.Y.Z` ist der neue Tag von mausimus.
+
+**Konflikte so auflösen:**
+
+| Datei | Regel |
+|---|---|
+| `ShaderGlass/ShaderGlass.rc` | UTF-16, Git kann sie **nicht** zusammenführen. Die Version von mausimus nehmen (`git checkout --theirs ShaderGlass/ShaderGlass.rc`) und dann alle WinGlass-Änderungen aus Abschnitt 1, 2 und 3 erneut eintragen, Textvergleich mit `iconv -f UTF-16 -t UTF-8`. Beim Schreiben UTF-16 LE mit BOM und CRLF beibehalten. |
+| `ShaderGlass/ShaderWindow.cpp`, `ShaderGlass.cpp`, `ShaderPass.cpp`, `CaptureManager.*`, `InputDialog.*`, `resource.h` | Beide Seiten behalten: Neuerungen von mausimus übernehmen, WinGlass-Code laut Abschnitt 1–3 erhalten. |
+| `README.md`, `Misc/README.txt`, `.github/workflows/*` | **Immer die WinGlass-Version behalten.** Upstream-Workflows `build.yml` und `build-winecap.yml` nicht wieder hinzufügen. |
+| Von WinGlass gelöscht (`images/`, `FAQ.md`, `Misc/MANUAL.*`, `.github/FUNDING.yml`, `.github/CONTRIBUTING.md`, `ShaderGlass.ico`, `small.ico`) | **Gelöscht lassen** (`git rm`), auch wenn mausimus sie geändert hat. |
+| Neue Dateien von mausimus | Übernehmen. Wenn sie sichtbare Texte, Links oder Doku von ihm enthalten, nach Abschnitt 3 umbenennen oder weglassen. |
+
+### Weg B (Notlösung): Patches
+
+Im Ordner `fork-patches/` liegen die beiden Funktionen als Patch gegen v1.3.2:
 
 | Datei | Inhalt |
 |---|---|
 | `1-bilinear-filter.patch` | Bilinear Filter (inklusive Korrektur der Menüpositionen) |
 | `2-custom-pixel-size.patch` | Custom Pixel Size (setzt Patch 1 voraus, wegen `resource.h`) |
-
-In einem Klon der neuen ShaderGlass-Version:
 
 ```bash
 git apply --3way fork-patches/1-bilinear-filter.patch
@@ -30,13 +64,23 @@ git apply --3way fork-patches/1-bilinear-filter.patch
 git apply --3way fork-patches/2-custom-pixel-size.patch
 ```
 
-**Nicht im Patch enthalten** ist `ShaderGlass/ShaderGlass.rc`. Die Datei ist UTF-16 kodiert, Git behandelt sie als Binärdatei. Die eine Zeile muss von Hand eingefügt werden, siehe unten.
+`ShaderGlass.rc` ist nicht enthalten (UTF-16) und die Umbenennung auch nicht. Beides von Hand nach Abschnitt 1–3.
 
-Wenn ein Patch nicht sauber passt, weil mausimus die betroffenen Stellen geändert hat, die Änderungen anhand der Beschreibung unten von Hand übertragen.
+### Nach jedem Update prüfen (Checkliste)
 
-**Danach immer prüfen:**
-- Die Menü-IDs `32942` und `32943` sind in der neuen `resource.h` noch frei. Sonst neue freie IDs ab `_APS_NEXT_COMMAND_VALUE` nehmen.
-- Die Menüpositionen in `ShaderWindow::BuildProgramMenu()` stimmen (siehe Abschnitt 1, Punkt „Menüpositionen“). **Das ist die wichtigste Fehlerquelle.**
+1. **Funktionen vollständig:** alle Punkte aus Abschnitt 1 und 2 vorhanden, insbesondere `ApplyBilinear()`/`CreateFootprintShader()` in `ShaderGlass.cpp`, `SetPixelShaderOverride`/`CreateSamplers` in `ShaderPass.cpp`, `IDM_PIXELSIZE_CUSTOM` in `ShaderWindow.cpp`.
+2. **Menü-IDs:** `ID_PROCESSING_BILINEARFILTER` und `IDM_PIXELSIZE_CUSTOM` kollidieren nicht mit neuen IDs von mausimus in `resource.h`. Sonst neue freie IDs vergeben und `_APS_NEXT_COMMAND_VALUE` anpassen.
+3. **Menüpositionen:** Die Reihenfolge im Processing-Menü der neuen `ShaderGlass.rc` mit den Zahlen in `ShaderWindow::BuildProgramMenu()` abgleichen (`GetSubMenu(m_programMenu, N)`, `InsertMenu(m_programMenu, N, ...)`, `EnableMenuItem(m_programMenu, N, MF_BYPOSITION ...)`). „Bilinear Filter“ verschiebt alles danach um +1. **Häufigste Fehlerquelle**, Symptom: Häkchen bei GPU/FPS/Advanced fehlen, Klicks schalten Optionen aus.
+4. **Umbenennung vollständig.** Diese Suchen dürfen außer den erlaubten Stellen nichts finden:
+   - sichtbare Texte: `git grep -n '"[^"]*ShaderGlass' -- 'ShaderGlass/*.cpp' 'ShaderGlass/*.h' 'WineCap/*.c'` (Ausnahme `#include "ShaderGlass.h"`)
+   - Ressourcen: `iconv -f UTF-16 -t UTF-8 ShaderGlass/ShaderGlass.rc | grep -n -i "shaderglass\|mausimus"` (erlaubt: `IDI_SHADERGLASS`, `IDC_SHADERGLASS`, „Unofficial fork of ShaderGlass … by mausimus“, Copyright in der Versionsinfo)
+   - Links: `git grep -n -i "mausimus.github.io\|github.com/mausimus\|itch.io\|steampowered\|ko-fi"` (erlaubt: Copyright-Köpfe der Dateien, README-Credits, `Scripts/DownloadShaders.bat`)
+   - Registry: `git grep -n 'Software\\\\ShaderGlass'` muss leer sein, alles unter `Software\\WinGlass`.
+5. **Kennzeichnung:** Jede Datei aus `git diff --name-only vX.Y.Z HEAD` (Quellcode, Skripte, Projektdateien) trägt den Hinweis „Modified for WinGlass by lumen-tools …: this file is NOT the original ShaderGlass source.“ Den Copyright-Kopf von mausimus unverändert lassen, auch wenn er die Jahreszahl ändert.
+6. **Basisversion nachziehen:** „ShaderGlass 1.3.2“ in Help-Menü (`IDM_ABOUT2`), `Misc/README.txt`, `README.md` und oben in dieser Datei auf die neue Version ändern. `fork-patches/` gegen den neuen Tag neu erzeugen (`git diff vX.Y.Z HEAD -- ShaderGlass/ ':!ShaderGlass/ShaderGlass.rc'`, aufgeteilt nach Funktion).
+7. **WinGlass-Version:** `VERSION` erhöhen und in `ShaderGlass.rc` mitziehen: `FILEVERSION`, `PRODUCTVERSION`, `FileVersion`, `ProductVersion` und Help-Menü „WinGlass vX“.
+8. **Testen:** GitHub Actions → *Runtime test* → *Run workflow* (`.github/workflows/runtime-test.yml`, Skripte in `ci/`). Er baut WinGlass auf Windows, prüft Menü-Reihenfolge, Häkchen, Bilinear Filter (Bild ändert sich an/aus) und Custom Pixel Size. Im Log müssen `[menu] toggle … : 0 -> 8 -> 0` und bei jedem Test `mean abs diff 1-off vs 3-off = 0` stehen.
+9. Auf `main` mergen, dann erzeugt die Änderung an `VERSION` das Release.
 
 ---
 
@@ -204,4 +248,5 @@ mausimus hat für öffentliche Forks gebeten: Projekt überall umbenennen, keine
 Diese gehören nicht zu den beiden Funktionen, gehören aber zum Fork:
 - `.github/workflows/release.yml`: Baut `WinGlass.exe` (Windows) und `WineCap.dll` (Linux/Wine) und packt `WinGlass-<version>-win-x64.zip` (WinGlass.exe, WineCap.dll, README.txt, LICENSE, CustomShader.slang). Ausgelöst wird ein Release durch eine Änderung an `VERSION` auf `main`.
 - `VERSION`: Versionsnummer des Forks.
-- Branch `ci-test`: automatischer Laufzeittest auf Windows (Bilinear Filter, Menü, Custom Pixel Size).
+- `.github/workflows/runtime-test.yml` + `ci/`: manueller Laufzeittest auf Windows (Bilinear Filter, Menü, Custom Pixel Size), siehe Checkliste Punkt 8.
+- `CLAUDE.md`: Kurzanleitung für KI-Assistenten, verweist auf diese Datei.
