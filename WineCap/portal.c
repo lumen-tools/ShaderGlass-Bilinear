@@ -4,6 +4,9 @@ Copyright (C) 2021-2026 mausimus (mausimus.net)
 https://github.com/mausimus/ShaderGlass
 GNU General Public License v3.0
 
+Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
+
 Based on: portal.c
  *
  * Copyright 2021 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
@@ -38,8 +41,8 @@ struct portal_signal_call {
 	gulong cancelled_id;
 };
 
-#define REQUEST_PATH "/org/freedesktop/portal/desktop/request/%s/ShaderGlass%u"
-#define SESSION_PATH "/org/freedesktop/portal/desktop/session/%s/ShaderGlass%u"
+#define REQUEST_PATH "/org/freedesktop/portal/desktop/request/%s/WinGlass%u"
+#define SESSION_PATH "/org/freedesktop/portal/desktop/session/%s/WinGlass%u"
 #define MAX_TOKEN 512
 
 static GDBusConnection *connection = NULL;
@@ -81,7 +84,7 @@ void portal_create_request_path(char **out_path, char **out_token)
 	request_token_count++;
 	if (out_token) {
 		*out_token = (char*)malloc(MAX_TOKEN);
-		snprintf(*out_token, MAX_TOKEN, "ShaderGlass%u", request_token_count);
+		snprintf(*out_token, MAX_TOKEN, "WinGlass%u", request_token_count);
 	}
 	if (out_path) {
 		char *sender_name;
@@ -98,7 +101,7 @@ void portal_create_session_path(char **out_path, char **out_token)
 	session_token_count++;
 	if (out_token) {
 		*out_token = (char*)malloc(256);
-		snprintf(*out_token, 256, "ShaderGlass%u", session_token_count);
+		snprintf(*out_token, 256, "WinGlass%u", session_token_count);
 	}
 	if (out_path) {
 		char *sender_name;

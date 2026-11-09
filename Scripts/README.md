@@ -1,12 +1,13 @@
+<!-- Modified for WinGlass (unofficial fork of ShaderGlass by mausimus), 2026 -->
 # Rebuilding Shaders
 
-ShaderGlass comes with a precompiled library of shaders embedded in the binary. If you'd like to add
-or modify an embedded shader, you will need to rebuild it and then recompile ShaderGlass.
+WinGlass comes with a precompiled library of shaders embedded in the binary. If you'd like to add
+or modify an embedded shader, you will need to rebuild it and then recompile WinGlass.
 
 To try out an external shader, you can simply "Import custom..." which will load it on-the-fly.
 
 ShaderGen is a tool that reads .slangp profiles and generates header files
-which are then compiled with ShaderGlass.
+which are then compiled with WinGlass.
 
 ## Rebuilding whole shader library
 
@@ -14,14 +15,14 @@ which are then compiled with ShaderGlass.
 1. Go into Scripts folder
 2. Run DownloadShaders.bat
 
-> This will download RetroArch shaders from ShaderGlass' fork, which includes
+> This will download RetroArch shaders from the slang-shaders fork made for the original ShaderGlass (by mausimus), which includes
 tweaks and exclusions. You can clone original slang-shaders repo instead
 but beware many shaders will fail to compile or not work properly.
 
 3. Run RebuildAllShaders.bat
 > This will try to rebuild all shaders (takes a bit of time, 10 mins or so)
 
-4. Rebuild ShaderGlass using Visual Studio
+4. Rebuild WinGlass using Visual Studio
 
 ## Rebuilding a single shader
 
@@ -29,7 +30,7 @@ Instead of rebuilding all shaders you can focus on a single .slangp shader.
 
 1. Go into Scripts folder
 2. Run RebuildShader.bat [shader-path] (see .bat for usage)
-3. Rebuild ShaderGlass using Visual Studio
+3. Rebuild WinGlass using Visual Studio
 
 ## Debugging
 

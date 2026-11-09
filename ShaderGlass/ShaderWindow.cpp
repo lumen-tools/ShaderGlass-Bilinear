@@ -3,6 +3,9 @@ ShaderGlass: shader effect overlay
 Copyright (C) 2021-2025 mausimus (mausimus.net)
 https://github.com/mausimus/ShaderGlass
 GNU General Public License v3.0
+
+Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
 */
 
 #include "pch.h"
@@ -34,7 +37,7 @@ bool ShaderWindow::LoadProfile(const std::wstring& fileName, bool forceStart, co
         if(!infile.good())
         {
             auto message = std::wstring(TEXT("Unable to find profile ")) + fileName;
-            MessageBox(NULL, message.data(), L"ShaderGlass", MB_OK | MB_ICONERROR);
+            MessageBox(NULL, message.data(), L"WinGlass", MB_OK | MB_ICONERROR);
 
             return false;
         }
@@ -372,7 +375,7 @@ bool ShaderWindow::LoadProfile(const std::wstring& fileName, bool forceStart, co
     }
     catch(std::exception& e)
     {
-        MessageBox(NULL, convertCharArrayToLPCWSTR((std::string("Error loading profile: ") + std::string(e.what())).c_str()), L"ShaderGlass", MB_OK | MB_ICONERROR);
+        MessageBox(NULL, convertCharArrayToLPCWSTR((std::string("Error loading profile: ") + std::string(e.what())).c_str()), L"WinGlass", MB_OK | MB_ICONERROR);
     }
 
     return true;
@@ -424,7 +427,7 @@ void ShaderWindow::LoadProfile()
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner   = NULL;
-    ofn.lpstrFilter = (LPCWSTR)L"ShaderGlass Profiles (*.sgp)\0*.sgp\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFilter = (LPCWSTR)L"WinGlass Profiles (*.sgp)\0*.sgp\0All Files (*.*)\0*.*\0";
     ofn.lpstrFile   = (LPWSTR)szFileName;
     ofn.nMaxFile    = MAX_PATH;
     ofn.Flags       = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
@@ -643,7 +646,7 @@ void ShaderWindow::SaveProfile()
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner   = NULL;
-    ofn.lpstrFilter = (LPCWSTR)L"ShaderGlass Profiles (*.sgp)\0*.sgp\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFilter = (LPCWSTR)L"WinGlass Profiles (*.sgp)\0*.sgp\0All Files (*.*)\0*.*\0";
     ofn.lpstrFile   = (LPWSTR)szFileName;
     ofn.nMaxFile    = MAX_PATH;
     ofn.Flags       = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
@@ -692,7 +695,7 @@ void ShaderWindow::CompileThreadFunc()
         }
         catch(file_error& ex)
         {
-            errorMsg = std::string(ex.what()) + "\r\n\r\nIf this is a RetroArch preset pack, install it in RetroArch's directory first\r\nand import into ShaderGlass from there.";
+            errorMsg = std::string(ex.what()) + "\r\n\r\nIf this is a RetroArch preset pack, install it in RetroArch's directory first\r\nand import into WinGlass from there.";
         }
         catch(std::exception& ex)
         {
@@ -704,7 +707,7 @@ void ShaderWindow::CompileThreadFunc()
 
         if(errorMsg.size())
         {
-            MessageBox(m_mainWindow, convertCharArrayToLPCWSTR(errorMsg.c_str()), L"ShaderGlass", MB_OK);
+            MessageBox(m_mainWindow, convertCharArrayToLPCWSTR(errorMsg.c_str()), L"WinGlass", MB_OK);
         }
 
         if(m_forceStart)
@@ -760,7 +763,7 @@ bool ShaderWindow::ImportShader(const std::wstring& fileName, bool forceStart)
     }
     catch(std::exception& ex)
     {
-        MessageBox(m_mainWindow, convertCharArrayToLPCWSTR(ex.what()), L"ShaderGlass", MB_OK);
+        MessageBox(m_mainWindow, convertCharArrayToLPCWSTR(ex.what()), L"WinGlass", MB_OK);
         return false;
     }
 }
@@ -1454,7 +1457,7 @@ void ShaderWindow::UpdateTitle()
             snprintf(inFPSdisplay, 20, "%d->", inFPS);
         _snwprintf_s(title,
                      200,
-                     _T("ShaderGlass (%s%S, %Spx, %S%%, ~%S, %S%dfps%S)"),
+                     _T("WinGlass (%s%S, %Spx, %S%%, ~%S, %S%dfps%S)"),
                      windowName,
                      shader->Name.c_str(),
                      pixelSizeText.c_str(),
@@ -1467,11 +1470,11 @@ void ShaderWindow::UpdateTitle()
     }
     else if(m_firstStart)
     {
-        SetWindowTextW(m_mainWindow, _T("ShaderGlass (no input selected)"));
+        SetWindowTextW(m_mainWindow, _T("WinGlass (no input selected)"));
     }
     else
     {
-        SetWindowTextW(m_mainWindow, _T("ShaderGlass (stopped)"));
+        SetWindowTextW(m_mainWindow, _T("WinGlass (stopped)"));
     }
 }
 
@@ -1721,7 +1724,7 @@ LRESULT CALLBACK ShaderWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam, L
             }
             if(std::isnan(value) || value < 1.0f || value > 20.0f)
             {
-                MessageBox(m_mainWindow, L"Pixel Size must be between 1.00 and 20.00.", L"ShaderGlass", MB_OK | MB_ICONWARNING);
+                MessageBox(m_mainWindow, L"Pixel Size must be between 1.00 and 20.00.", L"WinGlass", MB_OK | MB_ICONWARNING);
                 break;
             }
             SetCustomPixelSize(value);
@@ -1977,14 +1980,14 @@ LRESULT CALLBACK ShaderWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam, L
 #ifdef _DEBUG
             m_captureManager.Debug();
 #else
-            ShellExecute(0, 0, L"https://github.com/mausimus/ShaderGlass", 0, 0, SW_SHOW);
+            ShellExecute(0, 0, L"https://github.com/lumen-tools/WinGlass", 0, 0, SW_SHOW);
 #endif
             break;
         case ID_HELP_README:
-            ShellExecute(0, 0, L"https://mausimus.github.io/ShaderGlass/MANUAL.html", 0, 0, SW_SHOW);
+            ShellExecute(0, 0, L"https://github.com/lumen-tools/WinGlass#readme", 0, 0, SW_SHOW);
             break;
         case ID_HELP_FREQUENTLYASKEDQUESTIONS:
-            ShellExecute(0, 0, L"https://github.com/mausimus/ShaderGlass/blob/master/FAQ.md", 0, 0, SW_SHOW);
+            ShellExecute(0, 0, L"https://github.com/lumen-tools/WinGlass#readme", 0, 0, SW_SHOW);
             break;
         case ID_GLOBALHOTKEYS_FULLSCREEN:
         case ID_GLOBALHOTKEYS_SCREENSHOT:
@@ -2736,7 +2739,7 @@ void ShaderWindow::SaveRegistryOption(const wchar_t* name, bool state)
 {
     HKEY  hkey;
     DWORD dwDisposition;
-    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
+    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
     {
         DWORD size  = sizeof(DWORD);
         DWORD value = state ? 1 : 0;
@@ -2748,7 +2751,7 @@ void ShaderWindow::SaveRegistryOption(const wchar_t* name, bool state)
 bool ShaderWindow::GetRegistryOption(const wchar_t* name, bool default)
 {
     HKEY hKey;
-    if(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
+    if(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
     {
         DWORD value = (default ? 1 : 0);
         DWORD size  = sizeof(DWORD);
@@ -2764,7 +2767,7 @@ void ShaderWindow::SaveRegistryInt(const wchar_t* name, int value)
 {
     HKEY  hkey;
     DWORD dwDisposition;
-    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
+    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
     {
         DWORD size   = sizeof(DWORD);
         DWORD dvalue = value;
@@ -2777,7 +2780,7 @@ void ShaderWindow::DeleteRegistry(const wchar_t* name)
 {
     HKEY  hkey;
     DWORD dwDisposition;
-    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass"), 0, NULL, 0, KEY_WRITE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
+    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass"), 0, NULL, 0, KEY_WRITE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
     {
         RegDeleteValue(hkey, name);
         RegCloseKey(hkey);
@@ -2787,7 +2790,7 @@ void ShaderWindow::DeleteRegistry(const wchar_t* name)
 int ShaderWindow::GetRegistryInt(const wchar_t* name, int default)
 {
     HKEY hKey;
-    if(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
+    if(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
     {
         DWORD dvalue = default;
         DWORD size   = sizeof(DWORD);
@@ -2870,7 +2873,7 @@ void ShaderWindow::LoadRecentProfiles()
     m_recentProfiles.clear();
 
     HKEY hKey;
-    if(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass\\Recent"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
+    if(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass\\Recent"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
     {
         for(int p = 0; p < MAX_RECENT_PROFILES; p++)
         {
@@ -2903,7 +2906,7 @@ void ShaderWindow::SaveRecentProfiles()
 {
     HKEY  hkey;
     DWORD dwDisposition;
-    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass\\Recent"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
+    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass\\Recent"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
     {
         for(int p = 0; p < MAX_RECENT_PROFILES; p++)
         {
@@ -2965,7 +2968,7 @@ void ShaderWindow::LoadRecentImports()
     m_recentImports.clear();
 
     HKEY hKey;
-    if(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass\\Imports"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
+    if(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass\\Imports"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
     {
         for(int p = 0; p < MAX_RECENT_IMPORTS; p++)
         {
@@ -2998,7 +3001,7 @@ void ShaderWindow::SaveRecentImports()
 {
     HKEY  hkey;
     DWORD dwDisposition;
-    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass\\Imports"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
+    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass\\Imports"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
     {
         for(int p = 0; p < MAX_RECENT_IMPORTS; p++)
         {
@@ -3065,9 +3068,9 @@ std::wstring ShaderWindow::GetDefaultPath() const
     wchar_t* path;
     if(SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &path)))
     {
-        return std::wstring(path) + L"\\ShaderGlassDefault.sgp";
+        return std::wstring(path) + L"\\WinGlassDefault.sgp";
     }
-    return L"ShaderGlassDefault.sgp";
+    return L"WinGlassDefault.sgp";
 }
 
 void ShaderWindow::SaveDefault()

@@ -1,3 +1,5 @@
+// Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+// WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by ShaderGlass.rc

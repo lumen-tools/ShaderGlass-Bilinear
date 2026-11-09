@@ -1,4 +1,6 @@
-// This is a minimal example of a custom shader you can import into ShaderGlass
+// Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+// WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
+// This is a minimal example of a custom shader you can import into WinGlass
 // Full specification and examples can be found at https://github.com/libretro/slang-shaders/blob/master/README.md
 
 #version 450

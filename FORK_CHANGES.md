@@ -1,13 +1,13 @@
-# Änderungen dieses Forks gegenüber ShaderGlass
+# WinGlass: Änderungen gegenüber ShaderGlass
 
 Basis: **ShaderGlass v1.3.2** von mausimus (Tag `v1.3.2`, Commit `c9001490`).
 
-Dieser Fork fügt genau zwei Funktionen hinzu:
+WinGlass ist ein inoffizieller, umbenannter Fork. Er fügt genau zwei Funktionen hinzu:
 
 1. **Bilinear Filter**: Schalter unter *Processing*
 2. **Custom Pixel Size**: freie Pixel Size mit 2 Nachkommastellen unter *Input → Pixel Size → Custom...*
 
-Alles andere ist Original-ShaderGlass. Die Datei beschreibt die Änderungen so genau, dass man sie in eine neuere ShaderGlass-Version wieder einbauen kann.
+Dazu kommt die Umbenennung zu WinGlass (Abschnitt 3), wie von mausimus für öffentliche Forks gewünscht. Alles andere ist Original-ShaderGlass. Die Datei beschreibt die Änderungen so genau, dass man sie in eine neuere ShaderGlass-Version wieder einbauen kann.
 
 ---
 
@@ -181,10 +181,26 @@ Unter **Input → Pixel Size** gibt es zusätzlich zu den festen Stufen den Punk
 
 ---
 
+## 3. Umbenennung zu WinGlass (Wünsche von mausimus)
+
+mausimus hat für öffentliche Forks gebeten: Projekt überall umbenennen, keine Links auf seine Doku/Issues/Downloads, Original-Copyright behalten, klar machen, dass es nicht das Original ist, und geänderte Quelldateien kennzeichnen. Umgesetzt (nicht in den Patches enthalten, bei einer neuen Version erneut durchgehen):
+
+- **Sichtbare Namen:** Fenstertitel (`WinGlass (...)`, `WinGlass (stopped)`, `WinGlass (no input selected)`), alle `MessageBox`-Titel, Dialogtitel (`CAPTION "WinGlass"` in `ShaderGlass.rc`), `IDS_APP_TITLE`, Profil-Dateifilter `WinGlass Profiles (*.sgp)`, Fehlermeldung beim Import („import into WinGlass“).
+- **Programmdatei:** `<TargetName>WinGlass</TargetName>` in allen vier Konfigurationen von `ShaderGlass.vcxproj`, also `WinGlass.exe`.
+- **Versionsinfo** in `ShaderGlass.rc` (`VS_VERSION_INFO`): Produktname WinGlass, Version, Copyright „Based on ShaderGlass (C) 2021-2025 mausimus; modifications (C) 2026 lumen-tools; GPL-3.0“. **Bei jedem Release `FILEVERSION`, `PRODUCTVERSION`, `FileVersion`, `ProductVersion` und den Menüpunkt „WinGlass vX“ im Help-Menü von Hand mit `VERSION` abgleichen.**
+- **Help-Menü:** „WinGlass v1.2“, „Unofficial fork of ShaderGlass 1.3.2 by mausimus“ (`IDM_ABOUT2`, inaktiv), Link `github.com/lumen-tools/WinGlass`. „Online Manual“ und FAQ öffnen das WinGlass-README.
+- **Einstellungen und Standardprofil:** Registry `HKCU\Software\WinGlass` statt `Software\ShaderGlass` (`ShaderWindow.cpp`, `BrowserWindow.cpp`), Standardprofil `WinGlassDefault.sgp`, damit sich WinGlass und ShaderGlass nicht gegenseitig verstellen.
+- **Fensterklasse:** String `IDC_SHADERGLASS` = `"WINGLASS"`.
+- **WineCap:** PipeWire-Streamname „WinGlass Input“ und Portal-Tokens `WinGlass%u` (`pipewire.c`, `portal.c`), `Makefile` startet `WinGlass.exe`.
+- **Hilfsskripte** (`Scripts/`), `Misc/CustomShader.slang`, `WineCap/README.md`: Programmname WinGlass. Der Download-Link auf mausimus' `slang-shaders`-Fork in `DownloadShaders.bat` bleibt, weil er nur die Shader-Quellen für einen Neubau liefert.
+- **Entfernt:** `images/`, `FAQ.md`, `Misc/MANUAL.html`, `Misc/MANUAL.pdf` (Doku und Links von mausimus), `.github/FUNDING.yml`, `.github/CONTRIBUTING.md`, die Original-Workflows `build.yml` und `build-winecap.yml`.
+- **README.md** komplett neu, `Misc/README.txt` (kommt als README.txt ins ZIP) neu.
+- **Kennzeichnung:** Jede gegenüber v1.3.2 geänderte Datei trägt oben den Hinweis „Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.“ Der Original-Copyright-Kopf von mausimus bleibt unverändert darüber.
+- **Bewusst nicht umbenannt (intern, nicht sichtbar):** Projekt-, Ordner-, Datei- und Klassennamen (`ShaderGlass.sln`, `ShaderGlass/`, `class ShaderGlass`, `IDC_SHADERGLASS` usw.), damit Vergleiche mit dem Original einfach bleiben. Das Programmsymbol (`ShaderGlass.ico`) ist noch das Original.
+
 ## Weitere Fork-spezifische Dinge (keine Funktionen)
 
 Diese gehören nicht zu den beiden Funktionen, gehören aber zum Fork:
-- `.github/workflows/release.yml`: Baut `ShaderGlass.exe` (Windows) und `WineCap.dll` (Linux/Wine) und packt das ZIP wie das Original. Ausgelöst wird ein Release durch eine Änderung an `VERSION` auf `main`.
+- `.github/workflows/release.yml`: Baut `WinGlass.exe` (Windows) und `WineCap.dll` (Linux/Wine) und packt `WinGlass-<version>-win-x64.zip` (WinGlass.exe, WineCap.dll, README.txt, LICENSE, CustomShader.slang). Ausgelöst wird ein Release durch eine Änderung an `VERSION` auf `main`.
 - `VERSION`: Versionsnummer des Forks.
-- `README.md`: Fork-Hinweis oben.
 - Branch `ci-test`: automatischer Laufzeittest auf Windows (Bilinear Filter, Menü, Custom Pixel Size).

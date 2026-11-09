@@ -1,170 +1,42 @@
-> **ShaderGlass-Bilinear** is a modified version of [ShaderGlass](https://github.com/mausimus/ShaderGlass) by mausimus, based on v1.3.2. All credit for ShaderGlass goes to mausimus.
-> Changes: added a *Bilinear Filter* toggle under *Processing*. When the captured image is scaled down to the shader input (Pixel Size), the whole area of each source pixel is averaged (bilinear multi-tap) instead of reading a single point. This gets shader results closer to running the same shaders natively in RetroArch. The shader chain itself is unchanged, and with the toggle off it behaves exactly like the original.
-> Developed with the help of Claude (AI). Licensed under GPL-3.0 like the original.
-> Download: [Releases](https://github.com/lumen-tools/ShaderGlass-Bilinear/releases)
+# WinGlass
 
-![License](https://img.shields.io/github/license/mausimus/ShaderGlass?color=red) ![GitHub Stars](https://img.shields.io/github/stars/mausimus/ShaderGlass?color=yellow) ![Downloads](https://img.shields.io/github/downloads/mausimus/ShaderGlass/total) ![Latest Release](https://img.shields.io/github/release-date/mausimus/ShaderGlass?label=latest%20release&color=blue) ![Beta Release](https://img.shields.io/github/release-date-pre/mausimus/ShaderGlass?label=beta%20release&color=orange)
+> **Unofficial fork.** WinGlass is based on [ShaderGlass](https://github.com/mausimus/ShaderGlass) 1.3.2 by mausimus, but it is **not** ShaderGlass and is not affiliated with, endorsed or supported by ShaderGlass or its author. Please report problems with WinGlass **only here** ([Issues](https://github.com/lumen-tools/WinGlass/issues)), never to ShaderGlass.
 
-## ShaderGlass
+WinGlass is an overlay for running RetroArch (slang) shaders on top of the Windows desktop, a window or a capture device, with two additions:
 
-Overlay for running GPU shaders on top of Windows desktop and Wine.
+- **Bilinear Filter** (*Processing > Bilinear Filter*): when the captured image is scaled down to the shader input (*Pixel Size*), WinGlass averages the whole area of each source pixel (n×n bilinear taps, n = 2–8 depending on the scale) instead of reading a single point. With an emulator that scales up without filtering, this gives a result close to "bilinear filtering in the emulator" and removes the mosaic pattern at non-integer pixel sizes. The shader chain itself is unchanged. With the toggle off, WinGlass processes the image like ShaderGlass 1.3.2.
+- **Custom Pixel Size** (*Input > Pixel Size > Custom...*): any pixel size from 1.00 to 20.00 with two decimals (e.g. 4.65; comma or dot). It is shown in the title bar and saved in profiles.
 
-### Features
+Everything else works like ShaderGlass 1.3.2.
 
-* applies shader effects on top of desktop, in a floating window or full-screen
-* built-in [RetroArch](https://github.com/libretro/RetroArch) shader library (1200+ shaders!) covering:
-  * CRT monitor simulation
-  * image upscaling
-  * TV, VHS and handheld simulation
-  * softening, denoising, blur, sharpen and many more
-* works with most emulators, retro platforms and pixel art editors including:
-  * [DOSBox](https://www.dosbox.com/), [FS-UAE](https://github.com/FrodeSolheim/fs-uae), [Altirra](http://www.virtualdub.org/altirra.html),
-  [ScummVM](https://github.com/scummvm/scummvm), [AGS](https://github.com/adventuregamestudio/ags), [VICE](https://sf.net/projects/vice-emu), [Aseprite](https://www.aseprite.org/) etc.
-* excellent companion for pixel art showing shaded and/or aspect-ratio corrected preview
-* you can even use it on top of YouTube, Twitch or modern games
-* allows capture from a USB source (webcam or capture card)
-* saving and loading profiles
-* import of external .slangp/.slang shaders
-* high customizability with various options, operating modes and shader parameters
-* can be captured by OBS (using Game Capture source)
+## Download
 
-Check out [Online Manual](https://mausimus.github.io/ShaderGlass/MANUAL.html) for details.
+Get `WinGlass-<version>-win-x64.zip` from [Releases](https://github.com/lumen-tools/WinGlass/releases), unzip it and run `WinGlass.exe`. Windows 10 (2004 or newer) or Windows 11 is recommended.
 
-<br/>
+WinGlass keeps its own settings (registry key `HKEY_CURRENT_USER\Software\WinGlass`) and its own default profile (`WinGlassDefault.sgp`), so it does not change the settings of an installed ShaderGlass.
 
-### Download
+## Basic use
 
-Latest __stable__ release (v1.3.0, 19 Mar 2026):
-* desktop/window capture under Linux/Wine
-* shader search function
-* shader library update
-* minor enhancements
+1. **Input:** choose the desktop, a window or a capture device (*Input* menu).
+2. **Pixel Size** (*Input > Pixel Size*): how many captured pixels make up one pixel of the shader input. For an emulator that shows a game at 4× choose x4; for other factors use *Custom...*.
+3. **Shader:** *Shader > Choose from Library...*, or import your own `.slangp`/`.slang` with *Shader > Import custom...*.
+4. **Bilinear Filter:** turn it on under *Processing* and turn bilinear filtering **off** in the emulator, otherwise the image is smoothed twice.
+5. **Profiles** (*Processing > Save profile as... / Load profile...*) store input, pixel size, shader and parameters. Imported shaders are not kept in the shader list after a restart; a profile or *Shader > Recent imports* brings them back.
 
-[https://github.com/mausimus/ShaderGlass/releases/download/v1.3.0/ShaderGlass-1.3.0.win-x64.zip](https://github.com/mausimus/ShaderGlass/releases/download/v1.3.0/ShaderGlass-1.3.0-win-x64.zip)
+## Building
 
-Latest __beta__ release (v1.3.1, 18 Oct 2026):
-* minor fixes and enhancements, see [ShaderGlass v1.3.1 Release Notes](https://github.com/mausimus/ShaderGlass/releases/tag/v1.3.1)
+Visual Studio 2022 (C++ desktop workload), open `ShaderGlass.sln` and build *Release | x64*. The output is `x64\Release\WinGlass.exe`.
 
-[https://github.com/mausimus/ShaderGlass/releases/download/v1.3.1/ShaderGlass-1.3.1-beta-win-x64.zip](https://github.com/mausimus/ShaderGlass/releases/download/v1.3.1/ShaderGlass-1.3.1-beta-win-x64.zip)
+Releases are built by GitHub Actions (`.github/workflows/release.yml`): raising `VERSION` on `main` builds `WinGlass.exe` and `WineCap.dll` (Linux capture library for Wine/Proton) and publishes `WinGlass-<version>-win-x64.zip`.
 
-[Betas and older versions available here](https://github.com/mausimus/ShaderGlass/releases)
+The changes compared to ShaderGlass 1.3.2 are documented in [FORK_CHANGES.md](FORK_CHANGES.md). Source files that were changed carry a note at the top that they are not the original ShaderGlass source. Internal names (project, folder and class names such as `ShaderGlass.sln`, `ShaderGlass/`, `ShaderGlass::`) were kept to make it easier to compare with the original source.
 
-<br/>
+## Credits and license
 
-[![Buy me a coffee!](images/ko-fi.png)](https://ko-fi.com/mausimus)
+- **ShaderGlass** by mausimus, Copyright (C) 2021-2025 mausimus, GPL-3.0: WinGlass is a modified version of ShaderGlass 1.3.2. All original code, the user interface and the shader library integration are his work.
+- **RetroArch / libretro slang-shaders** ([libretro/slang-shaders](https://github.com/libretro/slang-shaders)): the bundled shaders, licensed by their respective authors.
+- **glslang** and **SPIRV-Cross** (Khronos Group): shader compilation.
 
-<br/>
+Modifications (C) 2026 lumen-tools. WinGlass was developed with the help of Claude (AI); the modifications are provided as-is, without warranty.
 
-### Get it on Steam!
-
-[![ShaderGlass on Steam](images/steam.png)](https://store.steampowered.com/app/3613770/ShaderGlass/)
-
-<br/>
-
-Black Frame Insertion (BFI) and Blur Busters' CRT Beam Simulator have been spun off
-into a new app [ShaderBeam](https://github.com/mausimus/ShaderBeam).
-
-<br/>
-
-### Requirements
-
-* __Windows 10, version 2004__ (build 19041) or __Windows 11__
-  * will work on version 1903 but in limited capacity (no Desktop Glass mode)
-  * Windows 11 allows the __removal of yellow border__ (see [FAQ](FAQ.md#windows-10) for tips on avoiding it on Windows 10)
-* DirectX 11-capable GPU
-* __Linux__: running under Wine/Proton is supported since 1.3 using ScreenCast+PipeWire for capture (clone mode only)
-
-<br/>
-
-### Demo
-
-Click to view on YouTube
-
-[![ShaderGlass (YouTube)](https://img.youtube.com/vi/gWOcucS9_mg/maxresdefault.jpg)](https://www.youtube.com/watch?v=gWOcucS9_mg)
-
-### Screenshots
-
-ShaderGlass running over multiple applications on Windows 11 desktop.
-
-![screenshot](images/screen7.png)
-
-#### Desktop Glass mode
-
-In this mode a transparent floating window will apply a shader to anything behind it.
-Requires Windows 10 2004 - on 1903/1909 you will see only a black window if you switch to this mode.
-
-Wikipedia in Chrome processed by crt-geom shader which applies scanlines and CRT curvature.
-
-![screenshot](images/screen1.png)
-
-#### Window Clone mode
-
-When capture is fixed to a specific window it's easier to tune scaling to match the input
-and image can also be recaptured (screenshot/OBS etc.)
-
-##### FS-UAE
-
-Amiga version of [The Secret of Monkey Island (1990)](https://store.steampowered.com/app/32360/The_Secret_of_Monkey_Island_Special_Edition/)
-running in FS-UAE with crt-interlaced-halation shader applied.
-
-![screenshot](images/screen4.png)
-
-##### Altirra
-
-[Ninja (1986)](https://www.mobygames.com/game/ninja_) for the Atari XL
-running in Altirra with a TV-OUT simulation shader.
-
-![screenshot](images/screen5.png)
-
-##### Adventure Game Studio
-
-[The Crimson Diamond (2024)](https://store.steampowered.com/app/1098770/The_Crimson_Diamond/),
-a modern AGS game using HSM MegaBezel STD shader.
-
-![screenshot](images/screen3.png)
-
-##### DOSBox
-
-[Police Quest (1987)](https://store.steampowered.com/app/494740/Police_Quest_Collection/)
-with its massive half-EGA pixels, aspect-ratio corrected and post-processed using newpixie-crt shader.
-
-![screenshot](images/screen2.png)
-
-[Rick Dangerous (1989)](https://www.mobygames.com/game/rick-dangerous)
-with C64 monitor shader applied.
-
-![screenshot](images/screen6.png)
-
-<br/>
-
-### Instructions & Manual
-
-See [Online Manual](https://mausimus.github.io/ShaderGlass/MANUAL.html) for option explanations and Frequently Asked Questions.
-
-<br/>
-
-### Code
-
-Built using Visual Studio 2022 using ISO C++ 20, Windows SDK 10.0.26100, Windows Capture API and DirectX 11.
-
-ShaderGlass includes a limited implementation of RetroArch shader back-end using DirectX 11.
-[ShaderGen](ShaderGen) is a command-line tool for converting Slang shaders 
-into .h files which can be precompiled in ShaderGlass. The conversion process relies on:
-1. [glslang](https://github.com/KhronosGroup/glslang) for converting Slang/GLSL shaders to SPIR-V
-2. [SPIR-V cross-compiler](https://github.com/KhronosGroup/SPIRV-Cross) for converting those to HLSL (DX11 format)
-3. [Direct3D Shader Compiler (fxc.exe)](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/) for pre-compiling into bytecode
-
-<br/>
-
-### Notices
-
-* ShaderGlass application is provided under [GNU General Public License v3.0](LICENSE)
-
-* Includes precompiled shaders from [libretro/RetroArch shader repository](https://github.com/libretro/slang-shaders).
-Please refer to copyright notes within shader code for detailed copyright and license information about each shader.
-
-* App icon courtesy of Icons-Land
-
-* Big kudos to RetroArch team, emulator developers and the wide retro community!
-
-* Thanks to @lonestarr and @EndlesslyFlowering for PRs and everyone for feedback and testing :thumbsup:
+Licensed under the GNU General Public License v3.0, see [LICENSE](LICENSE).

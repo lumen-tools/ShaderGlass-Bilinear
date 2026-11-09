@@ -3,6 +3,9 @@ ShaderGlass: shader effect overlay
 Copyright (C) 2021-2025 mausimus (mausimus.net)
 https://github.com/mausimus/ShaderGlass
 GNU General Public License v3.0
+
+Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
 */
 
 #include "pch.h"
@@ -631,7 +634,7 @@ void BrowserWindow::LoadPersonal()
 {
     HKEY  hkey;
     DWORD dwDisposition;
-    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass\\Personal"), 0, NULL, 0, KEY_READ | KEY_QUERY_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
+    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass\\Personal"), 0, NULL, 0, KEY_READ | KEY_QUERY_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
     {
         DWORD   index = 0;
         auto    done  = false;
@@ -731,12 +734,12 @@ void BrowserWindow::SavePersonal()
 {
     HKEY  hkey;
     DWORD dwDisposition;
-    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
+    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
     {
         RegDeleteKey(hkey, L"Personal");
     }
 
-    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\ShaderGlass\\Personal"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
+    if(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\WinGlass\\Personal"), 0, NULL, 0, KEY_WRITE | KEY_SET_VALUE, NULL, &hkey, &dwDisposition) == ERROR_SUCCESS)
     {
         int index = 0;
         try

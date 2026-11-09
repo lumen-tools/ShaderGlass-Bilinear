@@ -1,5 +1,7 @@
 @echo off
-echo This script will rebuild *ALL* RetroArch shaders into ShaderGlass.
+rem Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+rem WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
+echo This script will rebuild *ALL* RetroArch shaders into WinGlass.
 echo,
 echo Make sure you have ShaderGen.exe built into x64\Release directory
 echo and RetroArch shaders cloned into Scripts\slang-shaders subdirectory.

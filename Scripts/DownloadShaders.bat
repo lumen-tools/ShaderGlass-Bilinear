@@ -1,5 +1,7 @@
 @echo off
-echo This script will download RetroArch shaders including ShaderGlass adjustments so they can be rebuilt.
+rem Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+rem WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
+echo This script will download RetroArch shaders including the adjustments made for the original ShaderGlass so they can be rebuilt.
 echo You could also clone the original https://github.com/libretro/slang-shaders.git repo instead for testing new shaders.
 pause
 

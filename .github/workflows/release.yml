@@ -1,7 +1,7 @@
 name: Release
 
-# Builds ShaderGlass.exe (Windows) and WineCap.dll (Linux/Wine) and publishes
-# ShaderGlass-Bilinear-<version>-win-x64.zip with the same contents as the upstream releases.
+# Builds WinGlass.exe (Windows) and WineCap.dll (Linux/Wine) and publishes
+# WinGlass-<version>-win-x64.zip.
 # - Push to main that changes VERSION -> creates tag v<VERSION> + release
 # - Publishing a release manually       -> attaches the zip to that release
 # - "Run workflow" manually             -> (re)builds the zip for the given tag
@@ -31,7 +31,7 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: exe
-        path: x64\Release\ShaderGlass.exe
+        path: x64\Release\WinGlass.exe
 
   build-winecap:
     runs-on: ubuntu-22.04
@@ -73,18 +73,18 @@ jobs:
         echo "tag=$TAG" >> "$GITHUB_OUTPUT"
         echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
-    - name: Package (same layout as upstream ShaderGlass-x.y.z-win-x64.zip)
+    - name: Package
       run: |
         V="${{ steps.ver.outputs.version }}"
         mkdir dist
-        cp artifacts/exe/ShaderGlass.exe artifacts/winecap/WineCap.dll Misc/MANUAL.pdf dist/
+        cp artifacts/exe/WinGlass.exe artifacts/winecap/WineCap.dll dist/
         crlf() { sed 's/\r$//; s/$/\r/' "$1" > "$2"; }
         crlf LICENSE dist/LICENSE
         crlf Misc/CustomShader.slang dist/CustomShader.slang
-        { echo "ShaderGlass-Bilinear v$V (based on ShaderGlass v1.3.2 by mausimus, with Bilinear Filter)"; echo "https://github.com/lumen-tools/ShaderGlass-Bilinear"; tail -n +2 Misc/README.txt; } > readme.tmp
+        { echo "WinGlass v$V"; tail -n +2 Misc/README.txt; } > readme.tmp
         crlf readme.tmp dist/README.txt
-        (cd dist && zip -X -9 "../ShaderGlass-Bilinear-$V-win-x64.zip" *)
-        unzip -l "ShaderGlass-Bilinear-$V-win-x64.zip"
+        (cd dist && zip -X -9 "../WinGlass-$V-win-x64.zip" *)
+        unzip -l "WinGlass-$V-win-x64.zip"
 
     - name: Publish release
       env:
@@ -94,10 +94,10 @@ jobs:
         REPO: ${{ github.repository }}
       run: |
         if ! gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
-          gh release create "$TAG" --repo "$REPO" --target "${{ github.sha }}" --title "ShaderGlass-Bilinear $V" --generate-notes
+          gh release create "$TAG" --repo "$REPO" --target "${{ github.sha }}" --title "WinGlass $V" --generate-notes
         fi
         # remove assets from older packaging
         for a in $(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name'); do
-          [ "$a" != "ShaderGlass-Bilinear-$V-win-x64.zip" ] && gh release delete-asset "$TAG" "$a" --repo "$REPO" -y || true
+          [ "$a" != "WinGlass-$V-win-x64.zip" ] && gh release delete-asset "$TAG" "$a" --repo "$REPO" -y || true
         done
-        gh release upload "$TAG" "ShaderGlass-Bilinear-$V-win-x64.zip" --clobber --repo "$REPO"
+        gh release upload "$TAG" "WinGlass-$V-win-x64.zip" --clobber --repo "$REPO"

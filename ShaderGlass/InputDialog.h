@@ -3,6 +3,9 @@ ShaderGlass: shader effect overlay
 Copyright (C) 2021-2025 mausimus (mausimus.net)
 https://github.com/mausimus/ShaderGlass
 GNU General Public License v3.0
+
+Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
 */
 
 #pragma once

@@ -4,6 +4,9 @@ Copyright (C) 2021-2026 mausimus (mausimus.net)
 https://github.com/mausimus/ShaderGlass
 GNU General Public License v3.0
 
+Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
+
 Based on:
  * pipewire.c
  *
@@ -221,7 +224,7 @@ int pipewire_connect_stream()
   pw_loop_add_event(data.pw_loop, renegotiate_format, &data);
 
   info("Creating stream...");
-  data.stream = pw_stream_new(data.pw_core, "ShaderGlass Input", props);
+  data.stream = pw_stream_new(data.pw_core, "WinGlass Input", props);
   if (data.stream == NULL)
   {
     warn("Failed to create stream!");

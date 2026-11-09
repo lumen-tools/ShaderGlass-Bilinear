@@ -1,3 +1,5 @@
+# Modified for WinGlass by lumen-tools, 2026: this file is NOT the original ShaderGlass source.
+# WinGlass is an unofficial fork of ShaderGlass: https://github.com/lumen-tools/WinGlass
 PIPEWIRE = $(shell pkg-config --cflags --libs libpipewire-0.3)
 GLIB = $(shell pkg-config --cflags --libs gio-unix-2.0)
 
@@ -10,7 +12,7 @@ debug:
 	mv WineCap.dll.so WineCap.dll
 
 run: all
-	wine ShaderGlass.exe
+	wine WinGlass.exe
 
 clean:
 	rm -f WineCap.dll
